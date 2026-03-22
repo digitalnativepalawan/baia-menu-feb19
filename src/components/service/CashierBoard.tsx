@@ -447,6 +447,14 @@ const BillOutPanel = ({
                   >
                     Cancel — pay now instead
                   </button>
+                  <Button
+                    onClick={onConfirm}
+                    disabled={busy}
+                    size="sm"
+                    className="w-full mt-2 font-display text-xs tracking-wider gap-1.5 bg-gold text-primary-foreground hover:bg-gold/90"
+                  >
+                    {busy ? 'Processing…' : '✓ Confirm Room Charge'}
+                  </Button>
                 </div>
               )}
 
