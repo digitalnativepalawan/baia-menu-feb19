@@ -62,11 +62,11 @@ const RoomBillingTab = ({ unit, booking, guestName, readOnly = false }: RoomBill
     refetchInterval: 10000,
     queryFn: async () => {
       const { data: byRoom } = await supabase.from('orders').select('*')
-        .eq('room_id', unit.id).in('status', ['New', 'Preparing', 'Ready', 'Served', 'Paid'])
+        .eq('room_id', unit.id).in('status', ['New', 'Preparing', 'Ready', 'Served', 'Paid', 'room_charge'])
         .order('created_at', { ascending: false });
       const { data: byLocation } = await supabase.from('orders').select('*')
         .is('room_id', null).eq('location_detail', unit.name)
-        .in('status', ['New', 'Preparing', 'Ready', 'Served', 'Paid'])
+        .in('status', ['New', 'Preparing', 'Ready', 'Served', 'Paid', 'room_charge'])
         .order('created_at', { ascending: false });
       const map = new Map<string, any>();
       for (const o of [...(byRoom || []), ...(byLocation || [])]) map.set(o.id, o);
@@ -358,6 +358,7 @@ const RoomBillingTab = ({ unit, booking, guestName, readOnly = false }: RoomBill
       case 'Preparing': return 'bg-amber-500/20 text-amber-300 border-amber-500/30';
       case 'Ready': return 'bg-green-500/20 text-green-300 border-green-500/30';
       case 'Served': return 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30';
+      case 'room_charge': return 'bg-blue-500/20 text-blue-300 border-blue-500/30';
       case 'Paid': return 'bg-muted text-muted-foreground border-muted';
       default: return 'bg-muted text-muted-foreground';
     }
