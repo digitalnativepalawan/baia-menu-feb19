@@ -108,11 +108,9 @@ const CashierBoard = () => {
       const sc = Number(selectedOrder.service_charge || 0);
       const grandTotal = subtotal + sc;
 
-      const updateData: any = {
-        status: 'Paid',
-        payment_type: paymentType,
-        closed_at: new Date().toISOString(),
-      };
+      const updateData: any = chargeToRoom
+        ? { status: 'room_charge', payment_type: paymentType }
+        : { status: 'Paid', payment_type: paymentType, closed_at: new Date().toISOString() };
 
       if (chargeToRoom && selectedBooking) {
         const booking = activeBookings.find(b => b.id === selectedBooking);
@@ -157,7 +155,7 @@ const CashierBoard = () => {
   const activePaymentMethods = paymentMethods.filter(m => m.is_active && m.name !== 'Charge to Room');
 
   const handleOrderSelect = useCallback((order: any) => {
-    if (order.status === 'Paid') {
+    if (order.status === 'Paid' || order.status === 'room_charge') {
       setReceiptOrder(order);
     } else {
       setSelectedOrder(order);
@@ -298,14 +296,14 @@ const OrderRow = ({ order, selected, onSelect }: {
 }) => {
   const elapsed = formatDistanceToNow(new Date(order.created_at), { addSuffix: false });
   const isPaid = order.status === 'Paid';
+  const isRoomCharge = order.status === 'room_charge';
   const isReady = order.status === 'Ready';
-  const isRoomCharge = order.payment_type === 'Charge to Room';
 
   return (
     <div
       onClick={onSelect}
       className={`rounded-xl border border-border/60 p-3 transition-all cursor-pointer active:scale-[0.98] overflow-hidden min-w-0 ${
-        isPaid ? 'opacity-70 hover:opacity-90' : 'hover:bg-secondary/30'
+        isPaid || isRoomCharge ? 'opacity-70 hover:opacity-90' : 'hover:bg-secondary/30'
       } ${selected ? 'ring-2 ring-gold bg-gold/5' : 'bg-card/90'}`}
     >
       <div className="flex items-start justify-between mb-1.5">
@@ -318,7 +316,7 @@ const OrderRow = ({ order, selected, onSelect }: {
           )}
         </div>
         <div className="flex items-center gap-1.5 text-muted-foreground flex-shrink-0 ml-2">
-          {isPaid && <Printer className="w-3 h-3 text-gold" />}
+          {(isPaid || isRoomCharge) && <Printer className="w-3 h-3 text-gold" />}
           <Clock className="w-3 h-3" />
           <span className="font-body text-[11px] tabular-nums">{elapsed}</span>
         </div>
@@ -326,12 +324,12 @@ const OrderRow = ({ order, selected, onSelect }: {
 
       <div className="flex items-center justify-between">
         <Badge variant="outline" className={`font-body text-[10px] h-5 ${
-          isRoomCharge && isPaid ? 'border-blue-400/50 text-blue-400' :
+          isRoomCharge ? 'border-blue-400/50 text-blue-400' :
           isPaid ? 'border-emerald-400/50 text-emerald-400' :
           isReady ? 'border-cyan-400/50 text-cyan-400' :
           'border-amber-400/50 text-amber-400'
         }`}>
-          {isRoomCharge && isPaid ? 'Room Charge' : isPaid ? 'Paid' : isReady ? 'Ready — Awaiting Serve' : 'Pending Payment'}
+          {isRoomCharge ? 'Room Charge — On Folio' : isPaid ? 'Paid' : isReady ? 'Ready — Awaiting Serve' : 'Pending Payment'}
         </Badge>
         <span className="font-display text-sm text-gold tabular-nums">₱{order.total.toLocaleString()}</span>
       </div>

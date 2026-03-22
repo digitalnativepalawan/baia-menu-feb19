@@ -739,6 +739,7 @@ const ORDER_STATUS_MAP: Record<string, { label: string; color: string }> = {
   'Preparing': { label: 'Preparing', color: 'bg-amber-500/20 text-amber-400' },
   'Ready': { label: 'Ready', color: 'bg-emerald-500/20 text-emerald-400' },
   'Served': { label: 'Served', color: 'bg-green-500/20 text-green-400' },
+  'room_charge': { label: 'On Folio', color: 'bg-blue-500/20 text-blue-400' },
   'Paid': { label: 'Complete', color: 'bg-muted text-muted-foreground' },
   'Closed': { label: 'Closed', color: 'bg-muted text-muted-foreground' },
   'Cancelled': { label: 'Cancelled', color: 'bg-destructive/20 text-destructive' },
@@ -857,7 +858,7 @@ const OrdersView = ({ session }: { session: GuestPortalSession }) => {
                   const itemStatus = dept === 'bar' || dept === 'both' 
                     ? (order.bar_status === 'ready' ? 'Ready' : order.bar_status === 'preparing' ? 'Preparing' : order.status)
                     : (order.kitchen_status === 'ready' ? 'Ready' : order.kitchen_status === 'preparing' ? 'Preparing' : order.status);
-                  const finalStatus = order.status === 'Served' ? 'Served' : order.status === 'Paid' ? 'Paid' : order.status === 'Ready' ? 'Ready' : itemStatus;
+                  const finalStatus = order.status === 'Served' ? 'Served' : order.status === 'Paid' ? 'Paid' : order.status === 'room_charge' ? 'On Folio' : order.status === 'Ready' ? 'Ready' : itemStatus;
                   return (
                     <div key={idx} className="flex items-center justify-between">
                       <div className="flex-1 min-w-0">
