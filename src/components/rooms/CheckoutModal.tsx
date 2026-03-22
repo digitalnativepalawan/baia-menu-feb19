@@ -50,7 +50,7 @@ const CheckoutModal = ({ open, onOpenChange, unitId, unitName, guestName, bookin
   });
 
   const unpaidOrders = allRoomOrders.filter((o: any) => ['New', 'Preparing', 'Ready', 'Served'].includes(o.status));
-  const paidOrders = allRoomOrders.filter((o: any) => o.status === 'Paid');
+  const paidOrders = allRoomOrders.filter((o: any) => o.status === 'Paid' || o.status === 'room_charge');
 
   // Check for unserved orders (not yet "Served")
   const { data: unservedOrders = [] } = useQuery({
@@ -195,12 +195,18 @@ const CheckoutModal = ({ open, onOpenChange, unitId, unitName, guestName, bookin
         });
       }
 
-      // Batch-settle ALL unpaid room orders
-      if (unpaidOrders.length > 0) {
-        const orderIds = unpaidOrders.map((o: any) => o.id);
+      // Batch-settle ALL unsettled room orders (active + room charges on folio)
+      const allUnsettledIds = allRoomOrders
+        .filter((o: any) => ['New', 'Preparing', 'Ready', 'Served', 'room_charge'].includes(o.status))
+        .map((o: any) => o.id);
+      if (allUnsettledIds.length > 0) {
         await supabase.from('orders')
-          .update({ status: 'Paid', closed_at: new Date().toISOString() })
-          .in('id', orderIds);
+          .update({
+            status: 'Paid',
+            closed_at: new Date().toISOString(),
+            payment_type: paymentMethod || undefined,
+          })
+          .in('id', allUnsettledIds);
       }
 
       if (bookingId) {

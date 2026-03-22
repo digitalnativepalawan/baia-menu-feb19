@@ -1403,6 +1403,7 @@ const ReceptionPage = ({ embedded = false }: { embedded?: boolean }) => {
               'Preparing': { label: '🟡 Preparing', color: 'bg-amber-500/20 text-amber-400 border-amber-500/40' },
               'Ready': { label: '🟢 Ready', color: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40' },
               'Served': { label: '✅ Served', color: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40' },
+              'room_charge': { label: '🏨 Room Charge — Collect at Checkout', color: 'bg-blue-500/20 text-blue-400 border-blue-500/40' },
               'Paid': { label: '💰 Paid', color: 'bg-green-500/20 text-green-400 border-green-500/40' },
               'Cancelled': { label: '❌ Cancelled', color: 'bg-destructive/20 text-destructive border-destructive/40' },
             };
