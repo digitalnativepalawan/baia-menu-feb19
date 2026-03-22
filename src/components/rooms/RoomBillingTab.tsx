@@ -62,11 +62,11 @@ const RoomBillingTab = ({ unit, booking, guestName, readOnly = false }: RoomBill
     refetchInterval: 10000,
     queryFn: async () => {
       const { data: byRoom } = await supabase.from('orders').select('*')
-        .eq('room_id', unit.id).in('status', ['New', 'Preparing', 'Ready', 'Served', 'Paid'])
+        .eq('room_id', unit.id).in('status', ['New', 'Preparing', 'Ready', 'Served', 'Paid', 'Room Charge'])
         .order('created_at', { ascending: false });
       const { data: byLocation } = await supabase.from('orders').select('*')
         .is('room_id', null).eq('location_detail', unit.name)
-        .in('status', ['New', 'Preparing', 'Ready', 'Served', 'Paid'])
+        .in('status', ['New', 'Preparing', 'Ready', 'Served', 'Paid', 'Room Charge'])
         .order('created_at', { ascending: false });
       const map = new Map<string, any>();
       for (const o of [...(byRoom || []), ...(byLocation || [])]) map.set(o.id, o);
@@ -83,8 +83,8 @@ const RoomBillingTab = ({ unit, booking, guestName, readOnly = false }: RoomBill
     },
   });
 
-  const unpaidOrders = roomOrders.filter(o => o.status !== 'Paid');
-  const paidOrders = roomOrders.filter(o => o.status === 'Paid');
+  const unpaidOrders = roomOrders.filter(o => o.status !== 'Paid' && o.status !== 'Room Charge');
+  const paidOrders = roomOrders.filter(o => o.status === 'Paid' || o.status === 'Room Charge');
 
   // ── Realtime subscription for orders ──
   useEffect(() => {
@@ -669,8 +669,11 @@ const RoomBillingTab = ({ unit, booking, guestName, readOnly = false }: RoomBill
                     {format(new Date(o.created_at), 'MMM d h:mma')} · {o.staff_name || '—'}
                   </span>
                   <div className="flex items-center gap-1.5 shrink-0">
-                    <Badge variant="outline" className="text-[10px] bg-emerald-500/20 text-emerald-300 border-emerald-500/30">Paid</Badge>
-                    {isChargedToRoom && <Badge variant="outline" className="text-[10px] bg-primary/10 text-primary border-primary/30">Room</Badge>}
+                    {isChargedToRoom ? (
+                      <Badge variant="outline" className="text-[10px] bg-primary/10 text-primary border-primary/30">Room Charge</Badge>
+                    ) : (
+                      <Badge variant="outline" className="text-[10px] bg-emerald-500/20 text-emerald-300 border-emerald-500/30">Paid</Badge>
+                    )}
                   </div>
                 </div>
                 <p className="font-body text-xs text-foreground">
