@@ -49,7 +49,7 @@ const CheckoutModal = ({ open, onOpenChange, unitId, unitName, guestName, bookin
     },
   });
 
-  const unpaidOrders = allRoomOrders.filter((o: any) => ['New', 'Preparing', 'Ready', 'Served'].includes(o.status));
+  const unpaidOrders = allRoomOrders.filter((o: any) => ['New', 'Preparing', 'Ready', 'Served', 'room_charge'].includes(o.status));
   const paidOrders = allRoomOrders.filter((o: any) => o.status === 'Paid');
 
   // Check for unserved orders (not yet "Served")

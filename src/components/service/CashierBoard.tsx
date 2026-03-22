@@ -109,9 +109,9 @@ const CashierBoard = () => {
       const grandTotal = subtotal + sc;
 
       const updateData: any = {
-        status: 'Paid',
+        status: chargeToRoom ? 'room_charge' : 'Paid',
         payment_type: paymentType,
-        closed_at: new Date().toISOString(),
+        ...(chargeToRoom ? {} : { closed_at: new Date().toISOString() }),
       };
 
       if (chargeToRoom && selectedBooking) {
@@ -299,7 +299,7 @@ const OrderRow = ({ order, selected, onSelect }: {
   const elapsed = formatDistanceToNow(new Date(order.created_at), { addSuffix: false });
   const isPaid = order.status === 'Paid';
   const isReady = order.status === 'Ready';
-  const isRoomCharge = order.payment_type === 'Charge to Room';
+  const isRoomCharge = order.status === 'room_charge' || (order.payment_type === 'Charge to Room' && isPaid);
 
   return (
     <div
