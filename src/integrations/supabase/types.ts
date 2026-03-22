@@ -2172,7 +2172,7 @@ export type Database = {
             foreignKeyName: "room_transactions_unit_id_fkey"
             columns: ["unit_id"]
             isOneToOne: false
-            referencedRelation: "units"
+            referencedRelation: "resort_ops_units"
             referencedColumns: ["id"]
           },
         ]
