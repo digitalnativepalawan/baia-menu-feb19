@@ -1404,6 +1404,7 @@ const ReceptionPage = ({ embedded = false }: { embedded?: boolean }) => {
               'Ready': { label: '🟢 Ready', color: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40' },
               'Served': { label: '✅ Served', color: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40' },
               'Paid': { label: '💰 Paid', color: 'bg-green-500/20 text-green-400 border-green-500/40' },
+              'Room Charge': { label: '🏨 Room Charge', color: 'bg-blue-500/20 text-blue-400 border-blue-500/40' },
               'Cancelled': { label: '❌ Cancelled', color: 'bg-destructive/20 text-destructive border-destructive/40' },
             };
             const st = statusMap[order.status] || { label: order.status, color: 'bg-muted text-muted-foreground' };
@@ -1533,7 +1534,7 @@ const ReceptionPage = ({ embedded = false }: { embedded?: boolean }) => {
                     )}
 
                     {/* Corrective actions */}
-                    {canDoEdit && order.status !== 'Paid' && order.status !== 'Cancelled' && (
+                    {canDoEdit && order.status !== 'Paid' && order.status !== 'Room Charge' && order.status !== 'Cancelled' && (
                       <div className="flex flex-wrap gap-1.5 pt-1">
                         <Button size="sm" variant="outline" onClick={handleMarkPaid}
                           className="font-display text-[10px] tracking-wider min-h-[30px]">

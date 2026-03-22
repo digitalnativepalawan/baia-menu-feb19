@@ -66,9 +66,7 @@ const CashierBoard = () => {
       const { data } = await supabase
         .from('orders')
         .select('*')
-        .eq('status', 'Paid')
-        .is('room_id', null)
-        .neq('payment_type', 'Charge to Room')
+        .in('status', ['Paid', 'Room Charge'])
         .gte('created_at', dayStart)
         .lte('created_at', dayEnd)
         .order('created_at', { ascending: false })
@@ -109,7 +107,7 @@ const CashierBoard = () => {
       const grandTotal = subtotal + sc;
 
       const updateData: any = {
-        status: 'Paid',
+        status: chargeToRoom ? 'Room Charge' : 'Paid',
         payment_type: paymentType,
         closed_at: new Date().toISOString(),
       };
@@ -157,7 +155,7 @@ const CashierBoard = () => {
   const activePaymentMethods = paymentMethods.filter(m => m.is_active && m.name !== 'Charge to Room');
 
   const handleOrderSelect = useCallback((order: any) => {
-    if (order.status === 'Paid') {
+    if (order.status === 'Paid' || order.status === 'Room Charge') {
       setReceiptOrder(order);
     } else {
       setSelectedOrder(order);
@@ -297,7 +295,7 @@ const OrderRow = ({ order, selected, onSelect }: {
   onSelect: () => void;
 }) => {
   const elapsed = formatDistanceToNow(new Date(order.created_at), { addSuffix: false });
-  const isPaid = order.status === 'Paid';
+  const isPaid = order.status === 'Paid' || order.status === 'Room Charge';
   const isReady = order.status === 'Ready';
   const isRoomCharge = order.payment_type === 'Charge to Room';
 
