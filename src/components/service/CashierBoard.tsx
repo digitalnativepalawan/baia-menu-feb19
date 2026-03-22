@@ -116,13 +116,28 @@ const CashierBoard = () => {
 
       if (chargeToRoom && selectedBooking) {
         const booking = activeBookings.find(b => b.id === selectedBooking);
-        if (booking?.unit_id) {
-          updateData.room_id = booking.unit_id;
 
+        // Resolve unit_id from the booking; when absent, look up resort_ops_units
+        // by matching the order's location_detail against resort_ops_units.name.
+        let unitId: string | null = booking?.unit_id || null;
+        let unitName: string = booking?.resort_ops_units?.name || '';
+
+        if (!unitId && selectedOrder.location_detail) {
+          const { data: unitRow } = await (supabase.from('resort_ops_units' as any) as any)
+            .select('id, name')
+            .ilike('name', selectedOrder.location_detail.trim())
+            .maybeSingle();
+          if (unitRow) {
+            unitId = unitRow.id;
+            unitName = unitRow.name;
+          }
+        }
+
+        if (booking && unitId) {
           // Insert room_transaction for folio
           await (supabase.from('room_transactions' as any) as any).insert({
-            unit_id: booking.unit_id,
-            unit_name: booking.resort_ops_units?.name || '',
+            unit_id: unitId,
+            unit_name: unitName,
             guest_name: booking.resort_ops_guests?.full_name || selectedOrder.guest_name || '',
             booking_id: booking.id,
             transaction_type: 'room_charge',
