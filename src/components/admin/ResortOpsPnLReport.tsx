@@ -116,11 +116,16 @@ const ResortOpsPnLReport = ({ monthBookings, orders, monthExpenses, menuItems }:
 
   // ── Chart data ─────────────────────────────────────────────────────────
   const unitRevenueData = useMemo(() => {
-    const map = new Map<string, { realized: number; projected: number }>();
+    const map = new Map<string, { name: string; realized: number; projected: number }>();
     for (const b of monthBookings) {
       const id = (b.unit_id as string) || UNKNOWN_UNIT_ID;
-      if (!map.has(id)) map.set(id, { realized: 0, projected: 0 });
+      const rawName = b.unit?.name;
+      const unitName = typeof rawName === 'string' && rawName
+        ? rawName
+        : (id !== UNKNOWN_UNIT_ID ? `Unit ${id.slice(0, 6)}` : 'Unknown Unit');
+      if (!map.has(id)) map.set(id, { name: unitName, realized: 0, projected: 0 });
       const entry = map.get(id)!;
+      entry.name = unitName;
       entry.realized += Number(b.paid_amount || 0);
       if (b.check_in && b.check_out && b.room_rate) {
         const nights = Math.max(0, Math.round(
@@ -129,8 +134,8 @@ const ResortOpsPnLReport = ({ monthBookings, orders, monthExpenses, menuItems }:
         entry.projected += Number(b.room_rate) * nights;
       }
     }
-    return Array.from(map.entries()).map(([id, data]) => ({
-      unit: id !== UNKNOWN_UNIT_ID ? `Unit ${id.slice(0, 6)}` : 'Unknown Unit',
+    return Array.from(map.values()).map(data => ({
+      unit: data.name,
       realized: data.realized,
       projected: data.projected,
     }));
@@ -156,8 +161,8 @@ const ResortOpsPnLReport = ({ monthBookings, orders, monthExpenses, menuItems }:
 
   // ── PDF export ─────────────────────────────────────────────────────────
   const downloadPDF = () => {
-    const PDF_TOP_MARGIN = 18;
-    const PDF_PAGE_THRESHOLD = 275;
+    const PDF_PAGE_THRESHOLD = 272;
+    const PDF_CONTENT_TOP = 50;
 
     const monthDate = (() => {
       const raw = monthExpenses[0]?.expense_date || monthBookings[0]?.check_in;
@@ -175,120 +180,155 @@ const ResortOpsPnLReport = ({ monthBookings, orders, monthExpenses, menuItems }:
 
     const doc = new jsPDF();
     const pageW = doc.internal.pageSize.getWidth();
-    let y = PDF_TOP_MARGIN;
+    const pageH = doc.internal.pageSize.getHeight();
+    let y = PDF_CONTENT_TOP;
 
-    const checkPage = (needed = 8) => {
-      if (y + needed > PDF_PAGE_THRESHOLD) { doc.addPage(); y = PDF_TOP_MARGIN; }
+    const checkPage = (needed = 10) => {
+      if (y + needed > PDF_PAGE_THRESHOLD) { doc.addPage(); y = PDF_CONTENT_TOP; }
     };
 
-    // ── HEADER ─────────────────────────────────────────────────────────
-    doc.setFontSize(16);
-    doc.setFont('helvetica', 'bold');
-    doc.text('BAIA Boutique Resort', pageW / 2, y, { align: 'center' });
-    y += 7;
-    doc.setFontSize(11);
-    doc.setFont('helvetica', 'normal');
-    doc.text('San Vicente, Palawan', pageW / 2, y, { align: 'center' });
-    y += 7;
-    doc.setFontSize(12);
-    doc.setFont('helvetica', 'bold');
-    doc.text(`Monthly P&L Report \u2014 ${monthYearLabel}`, pageW / 2, y, { align: 'center' });
-    y += 10;
-    doc.setLineWidth(0.4);
-    doc.line(14, y, pageW - 14, y);
-    y += 8;
+    // ── HEADER — thick dark navy bar ─────────────────────────────────
+    doc.setFillColor(13, 27, 62);
+    doc.rect(0, 0, pageW, 40, 'F');
 
-    // ── SECTION 1 — Summary ────────────────────────────────────────────
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(20);
+    doc.setFont('helvetica', 'bold');
+    doc.text('BAIA Boutique Resort', pageW / 2, 13, { align: 'center' });
+
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.text('San Vicente, Palawan', pageW / 2, 21, { align: 'center' });
+
     doc.setFontSize(11);
     doc.setFont('helvetica', 'bold');
-    doc.text('Section 1 \u2014 Summary', 14, y);
-    y += 7;
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'normal');
-    const summaryRows: [string, string][] = [
-      ['Total Revenue',    `PHP ${fmt(totalRevenue)}`],
-      ['Total Expenses',   `PHP ${fmt(totalExpenses)}`],
-      ['Net Profit',       `PHP ${fmt(netProfit)}`],
-      ['Profit Margin',    `${profitMargin.toFixed(1)}%`],
+    doc.text(`Monthly P&L Report \u2014 ${monthYearLabel}`, pageW / 2, 31, { align: 'center' });
+
+    // Divider line below header
+    doc.setTextColor(0, 0, 0);
+    doc.setDrawColor(13, 27, 62);
+    doc.setLineWidth(0.8);
+    doc.line(0, 40, pageW, 40);
+    doc.setLineWidth(0.3);
+
+    // ── Helpers ──────────────────────────────────────────────────────
+    const drawSectionTitle = (title: string) => {
+      checkPage(16);
+      doc.setFillColor(13, 27, 62);
+      doc.rect(14, y, 3, 7, 'F');
+      doc.setFontSize(11);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(13, 27, 62);
+      doc.text(title, 20, y + 5.5);
+      y += 12;
+    };
+
+    const drawTableHeader = (col1: string, col2: string) => {
+      doc.setFillColor(13, 27, 62);
+      doc.rect(14, y, pageW - 28, 7, 'F');
+      doc.setFontSize(8.5);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(255, 255, 255);
+      doc.text(col1, 18, y + 5);
+      doc.text(col2, pageW - 16, y + 5, { align: 'right' });
+      y += 7;
+    };
+
+    const drawTotalRow = (label: string, value: string, r: number, g: number, b: number) => {
+      doc.setDrawColor(13, 27, 62);
+      doc.setLineWidth(0.5);
+      doc.line(14, y, pageW - 14, y);
+      y += 1;
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(40, 40, 40);
+      doc.text(label, 18, y + 5);
+      doc.setTextColor(r, g, b);
+      doc.text(value, pageW - 16, y + 5, { align: 'right' });
+      doc.setLineWidth(0.3);
+      y += 10;
+    };
+
+    // ── SECTION 1 — Summary boxes ─────────────────────────────────────
+    drawSectionTitle('Summary');
+
+    const boxGap = 3;
+    const boxW = (pageW - 28 - boxGap * 3) / 4;
+    const boxH = 22;
+    const COLOR_GREEN = { r: 34,  g: 197, b: 94  };
+    const COLOR_RED   = { r: 220, g: 38,  b: 38  };
+    const COLOR_BLUE  = { r: 37,  g: 99,  b: 235 };
+    const netColor = netProfit >= 0 ? COLOR_GREEN : COLOR_RED;
+    const summaryItems = [
+      { label: 'Total Revenue',  value: `\u20B1${fmt(totalRevenue)}`,  ...COLOR_GREEN },
+      { label: 'Total Expenses', value: `\u20B1${fmt(totalExpenses)}`, ...COLOR_RED   },
+      { label: 'Net Profit',     value: `\u20B1${fmt(netProfit)}`,     ...netColor    },
+      { label: 'Profit Margin',  value: `${profitMargin.toFixed(1)}%`, ...COLOR_BLUE  },
     ];
-    summaryRows.forEach(([label, value]) => {
-      checkPage();
-      doc.text(label, 18, y);
-      doc.text(value, pageW - 14, y, { align: 'right' });
-      y += 6;
+    summaryItems.forEach((item, i) => {
+      const bx = 14 + i * (boxW + boxGap);
+      doc.setFillColor(245, 248, 252);
+      doc.roundedRect(bx, y, boxW, boxH, 2, 2, 'F');
+      doc.setDrawColor(200, 210, 225);
+      doc.roundedRect(bx, y, boxW, boxH, 2, 2, 'S');
+      doc.setFontSize(7);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(100, 115, 135);
+      doc.text(item.label, bx + boxW / 2, y + 7, { align: 'center' });
+      doc.setFontSize(9.5);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(item.r, item.g, item.b);
+      doc.text(item.value, bx + boxW / 2, y + 16, { align: 'center' });
     });
-    y += 4;
+    y += boxH + 12;
 
-    // ── SECTION 2 — Revenue Breakdown ─────────────────────────────────
-    checkPage(12);
-    doc.setFontSize(11);
-    doc.setFont('helvetica', 'bold');
-    doc.text('Section 2 \u2014 Revenue Breakdown', 14, y);
-    y += 7;
-    doc.setFontSize(9);
-    doc.setFont('helvetica', 'bold');
-    doc.text('Source', 18, y);
-    doc.text('Amount', pageW - 14, y, { align: 'right' });
-    y += 5;
-    doc.setLineWidth(0.2);
-    doc.line(14, y, pageW - 14, y);
-    y += 4;
-    doc.setFont('helvetica', 'normal');
-    revenueRows.forEach(row => {
+    // ── SECTION 2 — Revenue Breakdown ────────────────────────────────
+    drawSectionTitle('Revenue Breakdown');
+    drawTableHeader('Source', 'Amount');
+    revenueRows.forEach((row, idx) => {
       checkPage();
-      doc.text(row.label, 18, y);
-      doc.text(`PHP ${fmt(row.value)}`, pageW - 14, y, { align: 'right' });
-      y += 5;
+      if (idx % 2 === 1) {
+        doc.setFillColor(246, 248, 251);
+        doc.rect(14, y, pageW - 28, 7, 'F');
+      }
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(40, 40, 40);
+      doc.text(row.label, 18, y + 5);
+      doc.text(`\u20B1${fmt(row.value)}`, pageW - 16, y + 5, { align: 'right' });
+      y += 7;
     });
-    doc.setLineWidth(0.2);
-    doc.line(14, y, pageW - 14, y);
-    y += 4;
-    doc.setFont('helvetica', 'bold');
-    doc.text('Total Revenue', 18, y);
-    doc.text(`PHP ${fmt(totalRevenue)}`, pageW - 14, y, { align: 'right' });
-    y += 8;
+    drawTotalRow('Total Revenue', `\u20B1${fmt(totalRevenue)}`, 34, 197, 94);
 
-    // ── SECTION 3 — Expenses Breakdown ────────────────────────────────
-    checkPage(12);
-    doc.setFontSize(11);
-    doc.setFont('helvetica', 'bold');
-    doc.text('Section 3 \u2014 Expenses Breakdown', 14, y);
-    y += 7;
-    doc.setFontSize(9);
-    doc.setFont('helvetica', 'bold');
-    doc.text('Category', 18, y);
-    doc.text('Amount', pageW - 14, y, { align: 'right' });
-    y += 5;
-    doc.setLineWidth(0.2);
-    doc.line(14, y, pageW - 14, y);
-    y += 4;
-    doc.setFont('helvetica', 'normal');
-    expenseRows.forEach(row => {
+    // ── SECTION 3 — Expenses Breakdown ───────────────────────────────
+    drawSectionTitle('Expenses Breakdown');
+    drawTableHeader('Category', 'Amount');
+    expenseRows.forEach((row, idx) => {
       checkPage();
-      doc.text(row.label, 18, y);
-      doc.text(`PHP ${fmt(row.amount)}`, pageW - 14, y, { align: 'right' });
-      y += 5;
+      if (idx % 2 === 1) {
+        doc.setFillColor(246, 248, 251);
+        doc.rect(14, y, pageW - 28, 7, 'F');
+      }
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(40, 40, 40);
+      doc.text(row.label, 18, y + 5);
+      doc.text(`\u20B1${fmt(row.amount)}`, pageW - 16, y + 5, { align: 'right' });
+      y += 7;
     });
-    doc.setLineWidth(0.2);
-    doc.line(14, y, pageW - 14, y);
-    y += 4;
-    doc.setFont('helvetica', 'bold');
-    doc.text('Total Expenses', 18, y);
-    doc.text(`PHP ${fmt(totalExpenses)}`, pageW - 14, y, { align: 'right' });
-    y += 10;
+    drawTotalRow('Total Expenses', `\u20B1${fmt(totalExpenses)}`, 220, 38, 38);
 
-    // ── SECTION 4 — Footer ────────────────────────────────────────────
-    checkPage(14);
-    doc.setLineWidth(0.4);
-    doc.line(14, y, pageW - 14, y);
-    y += 6;
+    // ── FOOTER — dark navy bar at bottom of last page ─────────────────
+    doc.setFillColor(13, 27, 62);
+    doc.rect(0, pageH - 14, pageW, 14, 'F');
     doc.setFontSize(8);
     doc.setFont('helvetica', 'normal');
+    doc.setTextColor(255, 255, 255);
     const generatedDate = new Date().toLocaleDateString('en-PH', {
       year: 'numeric', month: 'long', day: 'numeric',
     });
-    doc.text(`Generated: ${generatedDate}`, 14, y);
-    doc.text('Powered by BAIA ROS', pageW - 14, y, { align: 'right' });
+    doc.text(`Generated: ${generatedDate}`, 14, pageH - 5);
+    doc.text('Powered by BAIA ROS', pageW - 14, pageH - 5, { align: 'right' });
 
     doc.save(filename);
   };
