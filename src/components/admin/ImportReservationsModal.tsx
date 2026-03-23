@@ -41,7 +41,9 @@ type ImportFieldKey =
   | 'source'
   | 'status'
   | 'country'
-  | 'notes';
+  | 'notes'
+  | 'ratePerNight'
+  | 'paymentStatus';
 
 interface ParsedRow {
   idx: number;
@@ -70,6 +72,8 @@ interface ParsedRow {
   notes: string;
   platform: string;
   externalReservationId: string;
+  ratePerNight: number;
+  paymentStatus: string;
   raw: Record<string, string>;
   errors: string[];
   selected: boolean;
@@ -82,32 +86,35 @@ interface ImportResult {
   errors: string[];
 }
 
-const TEMPLATE_HEADERS = 'Name,Email,Phone Number,Reservation Number,Third Party Confirmation Number,Adults,Children,Room Number,Accommodation Total,Amount Paid,Check in Date,Check out Date,Nights,Room Type,Grand Total,Deposit,Products,Balance Due,Credit Card Type,Reservation Date,Source,Meal Plan,Status,Country,Guest Status,Cancellation Date,Estimated Arrival Time,Origin,Cancellation fee,Canceled By,Company Name,Company Tax ID Number,Guest Tax ID Number';
-const TEMPLATE_EXAMPLE = 'John Doe,john@email.com,+63 912 345 6789,ABC123,,2,0,COT(1),5000,0,15/04/2026,18/04/2026,3,Cottages,5000,2500,n/a,5000,n/a,10/03/2026,Walk-In,,Confirmed,Philippines,,,Unknown,,,,,,';
+const TEMPLATE_HEADERS = 'guest_name,room,platform,check_in,check_out,adults,children,rate_per_night,total_amount,payment_status,phone,email,notes';
+const TEMPLATE_EXAMPLE_1 = 'John Doe,COT(1),Direct,04/15/2026,04/18/2026,2,0,1667,5000,paid,+63 912 345 6789,john@email.com,Early check-in requested';
+const TEMPLATE_EXAMPLE_2 = 'Jane Smith,SUI(1),Booking.com,04/20/2026,04/23/2026,2,1,3000,9000,due,+63 917 123 4567,jane@email.com,';
 
 const FIELD_ALIASES: Record<ImportFieldKey, string[]> = {
-  guestName: ['Name', 'Guest Name'],
-  email: ['Email'],
-  phone: ['Phone Number', 'Mobile', 'Phone'],
+  guestName: ['guest_name', 'Name', 'Guest Name'],
+  email: ['email', 'Email'],
+  phone: ['phone', 'Phone Number', 'Mobile', 'Phone'],
   reservationNumber: ['Reservation Number'],
   thirdPartyConfirmation: ['Third Party Confirmation Number'],
-  adults: ['Adults', 'Guests'],
-  children: ['Children'],
-  roomNumber: ['Room Number', 'Units'],
-  accommodationTotal: ['Accommodation Total', 'Accommodation Total Amount'],
+  adults: ['adults', 'Adults', 'Guests'],
+  children: ['children', 'Children'],
+  roomNumber: ['room', 'Room Number', 'Units'],
+  accommodationTotal: ['total_amount', 'Accommodation Total', 'Accommodation Total Amount'],
   amountPaid: ['Amount Paid', 'Paid So Far Realized'],
-  checkIn: ['Check in Date', 'Check In'],
-  checkOut: ['Check out Date', 'Check Out'],
+  checkIn: ['check_in', 'Check in Date', 'Check In'],
+  checkOut: ['check_out', 'Check out Date', 'Check Out'],
   nights: ['Nights'],
   roomType: ['Room Type'],
   grandTotal: ['Grand Total'],
   deposit: ['Deposit'],
   balanceDue: ['Balance Due'],
   reservationDate: ['Reservation Date'],
-  source: ['Source', 'Platform'],
+  source: ['platform', 'Platform', 'Source'],
   status: ['Status'],
   country: ['Country'],
-  notes: ['Notes'],
+  notes: ['notes', 'Notes'],
+  ratePerNight: ['rate_per_night', 'Rate Per Night'],
+  paymentStatus: ['payment_status', 'Payment Status'],
 };
 
 const QUERY_KEYS_TO_INVALIDATE = [
@@ -172,14 +179,14 @@ function parseCSV(text: string): string[][] {
     .filter((row) => row.some((cell) => cell.length > 0));
 }
 
-function parseDateDDMMYYYY(value: string): string | null {
+function parseDate(value: string): string | null {
   if (!value) return null;
   const match = value.trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
   if (!match) return null;
 
-  const [, dd, mm, yyyy] = match;
-  const day = dd.padStart(2, '0');
+  const [, mm, dd, yyyy] = match;
   const month = mm.padStart(2, '0');
+  const day = dd.padStart(2, '0');
   const iso = `${yyyy}-${month}-${day}`;
   const date = new Date(`${iso}T00:00:00Z`);
 
@@ -262,6 +269,10 @@ function deriveNightlyRate(row: ParsedRow): number {
   const roomCount = Math.max(row.roomNumbers.length, 1);
   const nights = row.nights > 0 ? row.nights : 0;
 
+  if (row.ratePerNight > 0) {
+    return row.ratePerNight;
+  }
+
   if (row.accommodationTotal > 0 && nights > 0) {
     return row.accommodationTotal / nights / roomCount;
   }
@@ -284,6 +295,7 @@ function deriveNightlyRate(row: ParsedRow): number {
 function buildBookingNotes(row: ParsedRow, roomName: string): string {
   const notes: string[] = [];
   if (row.notes) notes.push(row.notes);
+  if (row.paymentStatus === 'due') notes.push('Payment due');
   if (row.country) notes.push(`Country: ${row.country}`);
   if (row.deposit > 0) notes.push(`Deposit: ₱${row.deposit.toFixed(2)}`);
   if (row.balanceDue > 0) notes.push(`Balance due: ₱${row.balanceDue.toFixed(2)}`);
@@ -308,8 +320,8 @@ function validateRow(
   const errors: string[] = [];
 
   if (!row.guestName) errors.push('Missing guest name');
-  if (!row.checkIn) errors.push('Missing or invalid check-in date (dd/mm/yyyy)');
-  if (!row.checkOut) errors.push('Missing or invalid check-out date (dd/mm/yyyy)');
+  if (!row.checkIn) errors.push('Missing or invalid check-in date (mm/dd/yyyy)');
+  if (!row.checkOut) errors.push('Missing or invalid check-out date (mm/dd/yyyy)');
   if (row.checkIn && row.checkOut && row.checkOut <= row.checkIn) errors.push('Check-out must be after check-in');
   if (!row.roomNumber || row.roomNumbers.length === 0) errors.push('Missing room number');
   if (row.adults < 0) errors.push('Adults must be 0 or greater');
@@ -336,12 +348,12 @@ const ImportReservationsModal = ({ open, onOpenChange, guests, units, onComplete
   const fileRef = useRef<HTMLInputElement>(null);
 
   const downloadTemplate = () => {
-    const csv = `${TEMPLATE_HEADERS}\n${TEMPLATE_EXAMPLE}`;
+    const csv = `${TEMPLATE_HEADERS}\n${TEMPLATE_EXAMPLE_1}\n${TEMPLATE_EXAMPLE_2}`;
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'reservations_template.csv';
+    a.download = 'baia_reservations_template.csv';
     a.style.display = 'none';
     document.body.appendChild(a);
     a.click();
@@ -411,27 +423,29 @@ const ImportReservationsModal = ({ open, onOpenChange, guests, units, onComplete
             roomNumbers: splitRoomNumbers(roomNumber),
             accommodationTotal: parseNumber(getHeaderValue(cells, headerMap, 'accommodationTotal')),
             amountPaid: parseNumber(getHeaderValue(cells, headerMap, 'amountPaid')),
-            checkIn: parseDateDDMMYYYY(checkInRaw) || '',
-            checkOut: parseDateDDMMYYYY(checkOutRaw) || '',
+            checkIn: parseDate(checkInRaw) || '',
+            checkOut: parseDate(checkOutRaw) || '',
             nights: parseInteger(getHeaderValue(cells, headerMap, 'nights'), 0),
             roomType: cleanOptionalValue(getHeaderValue(cells, headerMap, 'roomType')),
             grandTotal: parseNumber(getHeaderValue(cells, headerMap, 'grandTotal')),
             deposit: parseNumber(getHeaderValue(cells, headerMap, 'deposit')),
             balanceDue: parseNumber(getHeaderValue(cells, headerMap, 'balanceDue')),
-            reservationDate: parseDateDDMMYYYY(cleanOptionalValue(getHeaderValue(cells, headerMap, 'reservationDate'))) || '',
+            reservationDate: parseDate(cleanOptionalValue(getHeaderValue(cells, headerMap, 'reservationDate'))) || '',
             source,
             status,
             country: cleanOptionalValue(getHeaderValue(cells, headerMap, 'country')),
             notes: cleanOptionalValue(getHeaderValue(cells, headerMap, 'notes')),
             platform: resolvePlatform(source),
             externalReservationId,
+            ratePerNight: parseNumber(getHeaderValue(cells, headerMap, 'ratePerNight')),
+            paymentStatus: cleanOptionalValue(getHeaderValue(cells, headerMap, 'paymentStatus')).toLowerCase(),
             raw,
             errors: [],
             selected: true,
           };
 
-          if (checkInRaw && !row.checkIn) row.errors.push(`Invalid check-in date "${checkInRaw}" (use dd/mm/yyyy)`);
-          if (checkOutRaw && !row.checkOut) row.errors.push(`Invalid check-out date "${checkOutRaw}" (use dd/mm/yyyy)`);
+          if (checkInRaw && !row.checkIn) row.errors.push(`Invalid check-in date "${checkInRaw}" (use mm/dd/yyyy)`);
+          if (checkOutRaw && !row.checkOut) row.errors.push(`Invalid check-out date "${checkOutRaw}" (use mm/dd/yyyy)`);
 
           const key = normalizeText(externalReservationId);
           if (key) {
@@ -591,7 +605,11 @@ const ImportReservationsModal = ({ open, onOpenChange, guests, units, onComplete
           const roomTypeId = row.roomType ? roomTypeMap.get(normalizeText(row.roomType)) ?? null : null;
           const roomCount = Math.max(row.roomNumbers.length, 1);
           const roomRate = deriveNightlyRate(row);
-          const paidPerRoom = row.amountPaid > 0 ? row.amountPaid / roomCount : 0;
+          const paidPerRoom = row.amountPaid > 0
+            ? row.amountPaid / roomCount
+            : row.paymentStatus === 'paid'
+              ? row.accommodationTotal / roomCount
+              : 0;
           const shouldMarkImportedStayOccupied = shouldSyncImportedRoomAsOccupied(row.checkIn, row.checkOut);
 
           let insertedForRow = 0;
@@ -671,6 +689,7 @@ const ImportReservationsModal = ({ open, onOpenChange, guests, units, onComplete
               room_type: row.roomType || null,
               status: row.status || null,
               source: row.source || null,
+              payment_status: row.paymentStatus || null,
             };
 
             const { error: bookingError } = await from('resort_ops_bookings').insert({
@@ -750,7 +769,7 @@ const ImportReservationsModal = ({ open, onOpenChange, guests, units, onComplete
         <DialogHeader>
           <DialogTitle className="font-display text-sm tracking-wider">Import Reservations</DialogTitle>
           <DialogDescription className="font-body text-xs text-muted-foreground">
-            Upload the simplified template or a Cloudbeds export CSV. Dates must use dd/mm/yyyy.
+            Upload the BAIA reservations CSV template. Dates must use mm/dd/yyyy format.
           </DialogDescription>
         </DialogHeader>
 
@@ -782,9 +801,9 @@ const ImportReservationsModal = ({ open, onOpenChange, guests, units, onComplete
         ) : (
           <div className="space-y-4">
             <div className="rounded border border-border bg-muted/30 p-3 space-y-1">
-              <p className="font-body text-xs font-medium text-foreground">Supported CSV shapes</p>
+              <p className="font-body text-xs font-medium text-foreground">BAIA reservations template (13 columns)</p>
               <p className="font-body text-xs text-muted-foreground">
-                Simplified template download and Cloudbeds exports with extra guest or document columns.
+                guest_name, room, platform, check_in, check_out, adults, children, rate_per_night, total_amount, payment_status, phone, email, notes
               </p>
             </div>
 
@@ -865,29 +884,25 @@ const ImportReservationsModal = ({ open, onOpenChange, guests, units, onComplete
                         <div className="flex-1 min-w-0 space-y-1">
                           <div className="flex flex-wrap items-center gap-2">
                             <p className="font-body text-sm font-medium text-foreground">{row.guestName || '(no name)'}</p>
-                            {row.status && (
-                              <Badge variant={getStatusBadgeVariant(row.status)} className="text-[10px] h-5">
-                                {row.status}
+                            {row.paymentStatus && (
+                              <Badge variant={row.paymentStatus === 'paid' ? 'default' : 'outline'} className="text-[10px] h-5">
+                                {row.paymentStatus}
                               </Badge>
                             )}
-                            {row.source && (
+                            {row.platform && (
                               <Badge variant="secondary" className="text-[10px] h-5 max-w-full">
-                                {row.source}
+                                {row.platform}
                               </Badge>
                             )}
                           </div>
                           <p className="font-body text-xs text-muted-foreground">
-                            Rooms: {row.roomNumbers.join(', ') || row.roomNumber || '—'} · Adults: {row.adults} · Children: {row.children}
+                            Room: {row.roomNumbers.join(', ') || row.roomNumber || '—'} · Adults: {row.adults} · Children: {row.children}
                           </p>
                           <p className="font-body text-xs text-muted-foreground">
                             {row.checkIn || '—'} → {row.checkOut || '—'}{row.nights > 0 ? ` · ${row.nights} night${row.nights !== 1 ? 's' : ''}` : ''}
                           </p>
                           <p className="font-body text-xs text-muted-foreground">
-                            Accommodation: ₱{row.accommodationTotal.toLocaleString('en-PH', { maximumFractionDigits: 2 })} · Paid: ₱{row.amountPaid.toLocaleString('en-PH', { maximumFractionDigits: 2 })}
-                            {row.deposit > 0 ? ` · Deposit: ₱${row.deposit.toLocaleString('en-PH', { maximumFractionDigits: 2 })}` : ''}
-                          </p>
-                          <p className="font-body text-xs text-muted-foreground">
-                            Reservation #: {row.reservationNumber || '—'}{row.country ? ` · ${row.country}` : ''}
+                            Rate/night: ₱{(row.ratePerNight || 0).toLocaleString('en-PH', { maximumFractionDigits: 2 })} · Total: ₱{row.accommodationTotal.toLocaleString('en-PH', { maximumFractionDigits: 2 })}
                           </p>
                           {(row.email || row.phone) && (
                             <p className="font-body text-xs text-muted-foreground">
