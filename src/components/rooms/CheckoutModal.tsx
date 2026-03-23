@@ -208,6 +208,7 @@ const CheckoutModal = ({ open, onOpenChange, unitId, unitName, guestName, bookin
         await supabase.from('resort_ops_bookings').update({
           check_out: today,
           checked_out_at: new Date().toISOString(),
+          payment_status: 'paid',
         } as any).eq('id', bookingId);
       }
 

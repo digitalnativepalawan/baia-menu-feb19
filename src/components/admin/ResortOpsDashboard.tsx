@@ -81,6 +81,8 @@ const EMPTY_EXPENSE = {
 
 const fmtDecStatic = (n: number) => n.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
+const bookingNights = (b: any) => Math.max(1, Math.ceil((new Date(b.check_out).getTime() - new Date(b.check_in).getTime()) / 86400000));
+
 type ExpenseData = typeof EMPTY_EXPENSE;
 
 const ExpenseFormFields = ({ data, onChange, scannedFields, scanningReceipt, onScanReceipt }: {
@@ -267,7 +269,7 @@ const ResortOpsDashboard = ({ readOnly = false }: { readOnly?: boolean }) => {
   const monthPayments = useMemo(() => payments.filter((p: any) => p.expected_date >= monthStartStr && p.expected_date <= monthEndStr), [payments, monthStartStr, monthEndStr]);
 
   // ── KPI calculations ──
-  const revenue = useMemo(() => monthBookings.reduce((s: number, b: any) => s + Number(b.paid_amount || 0), 0), [monthBookings]);
+  const revenue = useMemo(() => monthBookings.filter((b: any) => b.payment_status === 'paid').reduce((s: number, b: any) => s + Number(b.room_rate || 0) * bookingNights(b), 0), [monthBookings]);
   const totalExpenses = useMemo(() => monthExpenses.reduce((s: number, e: any) => s + Number(e.amount || 0), 0), [monthExpenses]);
   const foodCost = useMemo(() => {
     const menuMap = new Map(menuItems.map((m: any) => [m.name, m.food_cost || 0]));
@@ -305,13 +307,12 @@ const ResortOpsDashboard = ({ readOnly = false }: { readOnly?: boolean }) => {
   const unitPerformance = useMemo(() => {
     return units.map((unit: any) => {
       const projected = Number(unit.base_price) * daysInMonth;
-      const realized = monthBookings.filter((b: any) => b.unit_id === unit.id).reduce((s: number, b: any) => s + Number(b.paid_amount || 0), 0);
-      const variance = realized - projected;
-      const occPct = occupancyData.find((o: any) => o.unit.id === unit.id)?.pct || 0;
-      const status = occPct > 90 ? 'HIGH' : occPct >= 50 ? 'ON_TRACK' : 'LOW';
+      const realized = monthBookings.filter((b: any) => b.unit_id === unit.id && b.payment_status === 'paid').reduce((s: number, b: any) => s + Number(b.room_rate || 0) * bookingNights(b), 0);
+      const variance = projected - realized;
+      const status = projected > 0 && realized >= projected * 0.5 ? 'ON_TRACK' : 'LOW';
       return { unit, projected, realized, variance, status };
     });
-  }, [units, monthBookings, daysInMonth, occupancyData]);
+  }, [units, monthBookings, daysInMonth]);
 
   // ── Inline add forms state ──
   const [newExpense, setNewExpense] = useState({ ...EMPTY_EXPENSE });
@@ -804,12 +805,12 @@ const ResortOpsDashboard = ({ readOnly = false }: { readOnly?: boolean }) => {
                 if (ledgerFilter === 'staying') return status === 'STAYING';
                 if (ledgerFilter === 'arriving') return status === 'ARRIVING';
                 if (ledgerFilter === 'departing') return status === 'DEPARTING';
-                if (ledgerFilter === 'unpaid') return Number(b.paid_amount) <= 0;
+                if (ledgerFilter === 'unpaid') return b.payment_status !== 'paid';
                 return true;
               })
               .map((b: any) => {
                 const status = getBookingStatus(b);
-                const isPaid = Number(b.paid_amount) > 0;
+                const isPaid = b.payment_status === 'paid';
                 if (editingBooking?.id === b.id) {
                   return (
                     <div key={b.id} className="p-3 rounded border border-primary/50 space-y-2">
@@ -873,7 +874,7 @@ const ResortOpsDashboard = ({ readOnly = false }: { readOnly?: boolean }) => {
                         <Badge className={`text-[10px] font-body ${platformColor(b.platform)}`}>{b.platform || '–'}</Badge>
                       </div>
                       <div className="flex items-center gap-1">
-                        {!isPaid && <Badge variant="destructive" className="font-body text-[10px]">DUE</Badge>}
+                        {isPaid ? <Badge className="bg-green-500/20 text-green-300 border-green-500/30 font-body text-[10px]">PAID</Badge> : <Badge variant="destructive" className="font-body text-[10px]">DUE</Badge>}
                         {status === 'STAYING' && <Badge className="bg-green-500/20 text-green-300 border-green-500/30 text-[10px] font-body">STAYING</Badge>}
                         <EditBtn onClick={() => setEditingBooking({ ...b, room_rate: String(b.room_rate), paid_amount: String(b.paid_amount), adults: String(b.adults), addons_total: String(b.addons_total), commission_applied: String(b.commission_applied) })} />
                         <DelBtn onClick={() => deleteRow('resort_ops_bookings', b.id)} />
@@ -995,14 +996,14 @@ const ResortOpsDashboard = ({ readOnly = false }: { readOnly?: boolean }) => {
             <div key={unit.id} className="p-3 rounded border border-border space-y-1">
               <div className="flex items-center justify-between">
                 <p className="font-body text-sm text-foreground font-medium">{unit.name}</p>
-                <Badge variant={status === 'HIGH' ? 'default' : status === 'ON_TRACK' ? 'secondary' : 'destructive'}
+                <Badge variant={status === 'ON_TRACK' ? 'secondary' : 'destructive'}
                   className="font-body text-[10px]">{status}</Badge>
               </div>
               <div className="flex justify-between font-body text-sm">
                 <span className="text-muted-foreground">Projected: <span className="text-foreground">₱{fmt(projected)}</span></span>
                 <span className="text-muted-foreground">Realized: <span className="text-foreground">₱{fmt(realized)}</span></span>
               </div>
-              <p className={`font-body text-xs ${variance >= 0 ? 'text-green-400' : 'text-red-400'}`}>Variance: ₱{fmt(variance)}</p>
+              <p className={`font-body text-xs ${variance <= 0 ? 'text-green-400' : 'text-red-400'}`}>Variance: ₱{fmt(variance)}</p>
             </div>
           ))}
           {units.length === 0 && <p className="font-body text-sm text-muted-foreground text-center py-4">No units configured</p>}

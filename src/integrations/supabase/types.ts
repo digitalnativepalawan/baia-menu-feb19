@@ -1727,6 +1727,7 @@ export type Database = {
           notes: string | null
           paid_amount: number
           password_expires_at: string | null
+          payment_status: string
           platform: string
           room_password: string | null
           room_rate: number
@@ -1756,6 +1757,7 @@ export type Database = {
           notes?: string | null
           paid_amount?: number
           password_expires_at?: string | null
+          payment_status?: string
           platform?: string
           room_password?: string | null
           room_rate?: number
@@ -1785,6 +1787,7 @@ export type Database = {
           notes?: string | null
           paid_amount?: number
           password_expires_at?: string | null
+          payment_status?: string
           platform?: string
           room_password?: string | null
           room_rate?: number
