@@ -119,9 +119,13 @@ const ResortOpsPnLReport = ({ monthBookings, orders, monthExpenses, menuItems }:
     const map = new Map<string, { name: string; realized: number; projected: number }>();
     for (const b of monthBookings) {
       const id = (b.unit_id as string) || UNKNOWN_UNIT_ID;
-      const unitName = (b.unit?.name as string) || (id !== UNKNOWN_UNIT_ID ? `Unit ${id.slice(0, 6)}` : 'Unknown Unit');
+      const rawName = b.unit?.name;
+      const unitName = typeof rawName === 'string' && rawName
+        ? rawName
+        : (id !== UNKNOWN_UNIT_ID ? `Unit ${id.slice(0, 6)}` : 'Unknown Unit');
       if (!map.has(id)) map.set(id, { name: unitName, realized: 0, projected: 0 });
       const entry = map.get(id)!;
+      entry.name = unitName;
       entry.realized += Number(b.paid_amount || 0);
       if (b.check_in && b.check_out && b.room_rate) {
         const nights = Math.max(0, Math.round(
@@ -251,11 +255,15 @@ const ResortOpsPnLReport = ({ monthBookings, orders, monthExpenses, menuItems }:
     const boxGap = 3;
     const boxW = (pageW - 28 - boxGap * 3) / 4;
     const boxH = 22;
+    const COLOR_GREEN = { r: 34,  g: 197, b: 94  };
+    const COLOR_RED   = { r: 220, g: 38,  b: 38  };
+    const COLOR_BLUE  = { r: 37,  g: 99,  b: 235 };
+    const netColor = netProfit >= 0 ? COLOR_GREEN : COLOR_RED;
     const summaryItems = [
-      { label: 'Total Revenue',  value: `\u20B1${fmt(totalRevenue)}`,  r: 34,  g: 197, b: 94  },
-      { label: 'Total Expenses', value: `\u20B1${fmt(totalExpenses)}`, r: 220, g: 38,  b: 38  },
-      { label: 'Net Profit',     value: `\u20B1${fmt(netProfit)}`,     r: netProfit >= 0 ? 34 : 220, g: netProfit >= 0 ? 197 : 38, b: netProfit >= 0 ? 94 : 38 },
-      { label: 'Profit Margin',  value: `${profitMargin.toFixed(1)}%`, r: 37,  g: 99,  b: 235 },
+      { label: 'Total Revenue',  value: `\u20B1${fmt(totalRevenue)}`,  ...COLOR_GREEN },
+      { label: 'Total Expenses', value: `\u20B1${fmt(totalExpenses)}`, ...COLOR_RED   },
+      { label: 'Net Profit',     value: `\u20B1${fmt(netProfit)}`,     ...netColor    },
+      { label: 'Profit Margin',  value: `${profitMargin.toFixed(1)}%`, ...COLOR_BLUE  },
     ];
     summaryItems.forEach((item, i) => {
       const bx = 14 + i * (boxW + boxGap);
