@@ -873,8 +873,9 @@ const ResortOpsDashboard = ({ readOnly = false }: { readOnly?: boolean }) => {
                         <Badge className={`text-[10px] font-body ${platformColor(b.platform)}`}>{b.platform || '–'}</Badge>
                       </div>
                       <div className="flex items-center gap-1">
-                        {!isPaid && <Badge variant="destructive" className="font-body text-[10px]">DUE</Badge>}
-                        {status === 'STAYING' && <Badge className="bg-green-500/20 text-green-300 border-green-500/30 text-[10px] font-body">STAYING</Badge>}
+                        {!isPaid && status !== 'STAYING' && <Badge variant="destructive" className="font-body text-[10px]">DUE</Badge>}
+                        {status === 'STAYING' && <Badge className="bg-amber-500/20 text-amber-300 border-amber-500/30 text-[10px] font-body">STAYING</Badge>}
+                        {isPaid && (status === 'PAST' || status === 'DEPARTING') && <Badge className="bg-green-500/20 text-green-300 border-green-500/30 text-[10px] font-body">PAID</Badge>}
                         <EditBtn onClick={() => setEditingBooking({ ...b, room_rate: String(b.room_rate), paid_amount: String(b.paid_amount), adults: String(b.adults), addons_total: String(b.addons_total), commission_applied: String(b.commission_applied) })} />
                         <DelBtn onClick={() => deleteRow('resort_ops_bookings', b.id)} />
                       </div>
