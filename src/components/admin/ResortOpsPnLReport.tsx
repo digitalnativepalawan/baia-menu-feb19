@@ -27,12 +27,19 @@ interface Props {
   orders: any[];
   monthExpenses: any[];
   menuItems: any[];
+  importOverride?: {
+    hotelAccommodation: number;
+    foodBevRevenue: number;
+    barRevenue: number;
+    hotelServices: number;
+    totalExpenses: number;
+  };
 }
 
 const fmt = (n: number) =>
   n.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-const ResortOpsPnLReport = ({ monthBookings, orders, monthExpenses, menuItems }: Props) => {
+const ResortOpsPnLReport = ({ monthBookings, orders, monthExpenses, menuItems, importOverride }: Props) => {
   // ── Menu-item category lookup ──────────────────────────────────────────
   const menuCategoryMap = useMemo(
     () => new Map<string, string>(menuItems.map((m: any) => [m.name as string, m.category as string])),
@@ -40,17 +47,17 @@ const ResortOpsPnLReport = ({ monthBookings, orders, monthExpenses, menuItems }:
   );
 
   // ── Revenue breakdown ──────────────────────────────────────────────────
-  const hotelAccommodation = useMemo(
+  const rawHotelAccommodation = useMemo(
     () => monthBookings.reduce((s: number, b: any) => s + Number(b.paid_amount || 0), 0),
     [monthBookings],
   );
 
-  const hotelServices = useMemo(
+  const rawHotelServices = useMemo(
     () => monthBookings.reduce((s: number, b: any) => s + Number(b.addons_total || 0), 0),
     [monthBookings],
   );
 
-  const { foodBevRevenue, barRevenue } = useMemo(() => {
+  const { rawFoodBevRevenue, rawBarRevenue } = useMemo(() => {
     let food = 0;
     let bar = 0;
     for (const order of orders) {
@@ -82,8 +89,14 @@ const ResortOpsPnLReport = ({ monthBookings, orders, monthExpenses, menuItems }:
         bar += orderBar;
       }
     }
-    return { foodBevRevenue: food, barRevenue: bar };
+    return { rawFoodBevRevenue: food, rawBarRevenue: bar };
   }, [orders, menuCategoryMap]);
+
+  // Apply import overrides to revenue values
+  const hotelAccommodation = importOverride ? importOverride.hotelAccommodation : rawHotelAccommodation;
+  const hotelServices = importOverride ? importOverride.hotelServices : rawHotelServices;
+  const foodBevRevenue = importOverride ? importOverride.foodBevRevenue : rawFoodBevRevenue;
+  const barRevenue = importOverride ? importOverride.barRevenue : rawBarRevenue;
 
   const totalRevenue = hotelAccommodation + hotelServices + foodBevRevenue + barRevenue;
 
@@ -106,10 +119,13 @@ const ResortOpsPnLReport = ({ monthBookings, orders, monthExpenses, menuItems }:
     [expenseByCategory],
   );
 
-  const totalExpenses = useMemo(
+  const rawTotalExpenses = useMemo(
     () => expenseRows.reduce((s, r) => s + r.amount, 0),
     [expenseRows],
   );
+
+  // Apply import override to total expenses (per-category breakdown still uses Supabase data)
+  const totalExpenses = importOverride ? importOverride.totalExpenses : rawTotalExpenses;
 
   // ── Summary metrics ────────────────────────────────────────────────────
   const netProfit = totalRevenue - totalExpenses;

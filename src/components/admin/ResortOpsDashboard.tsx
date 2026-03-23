@@ -17,6 +17,7 @@ import ExpenseReportsModal from './ExpenseReportsModal';
 import ResortOpsPnLReport from './ResortOpsPnLReport';
 import ExpenseBulkImportModal from './ExpenseBulkImportModal';
 import WebhookSettings from './WebhookSettings';
+import ImportDataModal, { loadImportedData, clearImportedData, type ImportedData } from './ImportDataModal';
 import { format, startOfMonth, endOfMonth, getDaysInMonth, eachDayOfInterval, isWithinInterval, parseISO, isBefore } from 'date-fns';
 
 const MONTHS = [
@@ -268,20 +269,26 @@ const ResortOpsDashboard = ({ readOnly = false }: { readOnly?: boolean }) => {
   const monthPayments = useMemo(() => payments.filter((p: any) => p.expected_date >= monthStartStr && p.expected_date <= monthEndStr), [payments, monthStartStr, monthEndStr]);
 
   // ── KPI calculations ──
-  const revenue = useMemo(() => monthBookings.reduce((s: number, b: any) => s + Number(b.paid_amount || 0), 0), [monthBookings]);
-  const totalExpenses = useMemo(() => monthExpenses.reduce((s: number, e: any) => s + Number(e.amount || 0), 0), [monthExpenses]);
-  const foodCost = useMemo(() => {
+  const rawRevenue = useMemo(() => monthBookings.reduce((s: number, b: any) => s + Number(b.paid_amount || 0), 0), [monthBookings]);
+  const rawTotalExpenses = useMemo(() => monthExpenses.reduce((s: number, e: any) => s + Number(e.amount || 0), 0), [monthExpenses]);
+  const rawFoodCost = useMemo(() => {
     const menuMap = new Map(menuItems.map((m: any) => [m.name, m.food_cost || 0]));
     return orders.reduce((sum: number, o: any) => {
       const items = (o.items as any[]) || [];
       return sum + items.reduce((s: number, i: any) => s + (Number(menuMap.get(i.name) || 0) * (i.qty || 1)), 0);
     }, 0);
   }, [orders, menuItems]);
-  const foodRevenue = useMemo(() => orders.reduce((s: number, o: any) => s + Number(o.total || 0), 0), [orders]);
-  const totalRevenue = revenue + foodRevenue;
-  const foodProfit = foodRevenue - foodCost;
-  const netProfit = totalRevenue - foodCost - totalExpenses;
-  const margin = totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0;
+  const rawFoodRevenue = useMemo(() => orders.reduce((s: number, o: any) => s + Number(o.total || 0), 0), [orders]);
+
+  // Use imported data overrides when available
+  const revenue = importedData ? importedData.roomRevenue : rawRevenue;
+  const totalExpenses = importedData ? importedData.expenses : rawTotalExpenses;
+  const foodCost = importedData ? importedData.foodCost : rawFoodCost;
+  const foodRevenue = importedData ? importedData.foodRevenue : rawFoodRevenue;
+  const totalRevenue = importedData ? importedData.totalRevenue : rawRevenue + rawFoodRevenue;
+  const foodProfit = importedData ? importedData.foodProfit : rawFoodRevenue - rawFoodCost;
+  const netProfit = importedData ? importedData.netProfit : totalRevenue - rawFoodCost - rawTotalExpenses;
+  const margin = importedData ? importedData.margin : (totalRevenue > 0 ? ((totalRevenue - rawFoodCost - rawTotalExpenses) / totalRevenue) * 100 : 0);
 
   // ── Lookup helpers ──
   const guestMap = useMemo(() => new Map(guests.map((g: any) => [g.id, g.full_name])), [guests]);
@@ -329,6 +336,8 @@ const ResortOpsDashboard = ({ readOnly = false }: { readOnly?: boolean }) => {
   const [importOpen, setImportOpen] = useState(false);
   const [expenseReportsOpen, setExpenseReportsOpen] = useState(false);
   const [expenseBulkImportOpen, setExpenseBulkImportOpen] = useState(false);
+  const [importDataOpen, setImportDataOpen] = useState(false);
+  const [importedData, setImportedData] = useState<ImportedData | null>(() => loadImportedData());
   const [expenseCategoryFilter, setExpenseCategoryFilter] = useState('all');
   const [expenseVatFilter, setExpenseVatFilter] = useState<'all' | 'VAT' | 'Non-VAT' | 'VAT-Exempt' | 'missing-tin'>('all');
   const [showAddExpenseForm, setShowAddExpenseForm] = useState(false);
@@ -697,7 +706,7 @@ const ResortOpsDashboard = ({ readOnly = false }: { readOnly?: boolean }) => {
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
       {/* Month Selector */}
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         <Select value={selectedMonth} onValueChange={setSelectedMonth}>
           <SelectTrigger className="bg-card border-border text-foreground font-display tracking-wider w-40">
             <SelectValue />
@@ -706,8 +715,33 @@ const ResortOpsDashboard = ({ readOnly = false }: { readOnly?: boolean }) => {
             {MONTHS.map(m => <SelectItem key={m} value={m}>{monthLabel(m)}</SelectItem>)}
           </SelectContent>
         </Select>
-        <h2 className="font-display text-lg tracking-wider text-foreground">Resort Ops</h2>
+        <h2 className="font-display text-lg tracking-wider text-foreground flex-1">Resort Ops</h2>
+        <Button size="sm" variant="outline" onClick={() => setImportDataOpen(true)} className="font-body text-xs h-8">
+          <Upload className="w-3.5 h-3.5 mr-1" /> Import Data
+        </Button>
+        {importedData && (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => { clearImportedData(); setImportedData(null); }}
+            className="font-body text-xs h-8 text-red-400 border-red-500/30 hover:bg-red-500/10"
+          >
+            <X className="w-3.5 h-3.5 mr-1" /> Clear Data
+          </Button>
+        )}
       </div>
+
+      {importedData && (
+        <div className="bg-green-500/10 border border-green-500/30 rounded p-2 text-xs font-body text-green-400">
+          ✓ Imported data active ({importedData.recordCount} records · {new Date(importedData.importedAt).toLocaleDateString()}) — overriding KPI values
+        </div>
+      )}
+
+      <ImportDataModal
+        open={importDataOpen}
+        onOpenChange={setImportDataOpen}
+        onImported={d => setImportedData(d)}
+      />
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -747,6 +781,13 @@ const ResortOpsDashboard = ({ readOnly = false }: { readOnly?: boolean }) => {
         orders={orders}
         monthExpenses={monthExpenses}
         menuItems={menuItems}
+        importOverride={importedData ? {
+          hotelAccommodation: importedData.roomRevenue,
+          foodBevRevenue: importedData.foodRevenue,
+          barRevenue: importedData.barRevenue,
+          hotelServices: importedData.hotelServices,
+          totalExpenses: importedData.expenses,
+        } : undefined}
       />
 
       {/* ── Units ── */}
