@@ -8,8 +8,9 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { startOfDay, startOfWeek, startOfMonth, startOfYear, subDays, endOfDay, format } from 'date-fns';
-import { DollarSign, ShoppingCart, TrendingUp, Lock, Download, CalendarIcon, Percent, PiggyBank, Receipt, ChevronDown, ChevronUp, BarChart3 } from 'lucide-react';
+import { DollarSign, ShoppingCart, TrendingUp, Lock, Download, CalendarIcon, Percent, PiggyBank, Receipt, ChevronDown, ChevronUp, BarChart3, Upload, X } from 'lucide-react';
 import AccountingExport from './AccountingExport';
+import ImportDataModal, { loadImportedData, clearImportedData, type ImportedData } from './ImportDataModal';
 import { cn } from '@/lib/utils';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from 'recharts';
@@ -28,6 +29,8 @@ const ReportsDashboard = ({ readOnly = false }: { readOnly?: boolean }) => {
   const [customFrom, setCustomFrom] = useState<Date | undefined>();
   const [customTo, setCustomTo] = useState<Date | undefined>();
   const [tabTypeFilter, setTabTypeFilter] = useState<string>('all');
+  const [importDataOpen, setImportDataOpen] = useState(false);
+  const [importedData, setImportedData] = useState<ImportedData | null>(() => loadImportedData());
   const [expandedTabId, setExpandedTabId] = useState<string | null>(null);
 
   const { dateFrom, dateTo } = useMemo(() => {
@@ -342,10 +345,37 @@ const ReportsDashboard = ({ readOnly = false }: { readOnly?: boolean }) => {
         </div>
       )}
 
-      {/* CSV Download */}
-      <Button size="sm" variant="outline" onClick={generateCSV} className="font-body text-xs w-full">
-        <Download className="w-4 h-4 mr-1" /> Download CSV Report
-      </Button>
+      {/* CSV Download + Import Data */}
+      <div className="flex gap-2">
+        <Button size="sm" variant="outline" onClick={generateCSV} className="font-body text-xs flex-1">
+          <Download className="w-4 h-4 mr-1" /> Download CSV Report
+        </Button>
+        <Button size="sm" variant="outline" onClick={() => setImportDataOpen(true)} className="font-body text-xs flex-1">
+          <Upload className="w-4 h-4 mr-1" /> Import Data
+        </Button>
+        {importedData && (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => { clearImportedData(); setImportedData(null); }}
+            className="font-body text-xs text-red-400 border-red-500/30 hover:bg-red-500/10"
+          >
+            <X className="w-4 h-4" />
+          </Button>
+        )}
+      </div>
+
+      {importedData && (
+        <div className="bg-green-500/10 border border-green-500/30 rounded p-3 text-xs font-body text-green-400">
+          ✓ Imported data active ({importedData.recordCount} records · {new Date(importedData.importedAt).toLocaleDateString()})
+        </div>
+      )}
+
+      <ImportDataModal
+        open={importDataOpen}
+        onOpenChange={setImportDataOpen}
+        onImported={d => setImportedData(d)}
+      />
 
       {/* Summary cards — powered by historical_revenue */}
       <div className="grid grid-cols-2 gap-3">
