@@ -41,7 +41,9 @@ type ImportFieldKey =
   | 'source'
   | 'status'
   | 'country'
-  | 'notes';
+  | 'notes'
+  | 'nightlyRate'
+  | 'payment';
 
 interface ParsedRow {
   idx: number;
@@ -70,6 +72,8 @@ interface ParsedRow {
   notes: string;
   platform: string;
   externalReservationId: string;
+  nightlyRate: number;
+  payment: string;
   raw: Record<string, string>;
   errors: string[];
   selected: boolean;
@@ -82,32 +86,34 @@ interface ImportResult {
   errors: string[];
 }
 
-const TEMPLATE_HEADERS = 'Name,Email,Phone Number,Reservation Number,Third Party Confirmation Number,Adults,Children,Room Number,Accommodation Total,Amount Paid,Check in Date,Check out Date,Nights,Room Type,Grand Total,Deposit,Products,Balance Due,Credit Card Type,Reservation Date,Source,Meal Plan,Status,Country,Guest Status,Cancellation Date,Estimated Arrival Time,Origin,Cancellation fee,Canceled By,Company Name,Company Tax ID Number,Guest Tax ID Number';
-const TEMPLATE_EXAMPLE = 'John Doe,john@email.com,+63 912 345 6789,ABC123,,2,0,COT(1),5000,0,15/04/2026,18/04/2026,3,Cottages,5000,2500,n/a,5000,n/a,10/03/2026,Walk-In,,Confirmed,Philippines,,,Unknown,,,,,,';
+const SIMPLIFIED_TEMPLATE_HEADERS = 'guest_name,unit,source,check_in,check_out,nights,pax,nightly_rate,amount_paid,payment';
+const SIMPLIFIED_TEMPLATE_EXAMPLE = 'John Doe,COT(1),Walk-In,15/04/2026,18/04/2026,3,2,1666.67,5000,Cash';
 
 const FIELD_ALIASES: Record<ImportFieldKey, string[]> = {
-  guestName: ['Name', 'Guest Name'],
+  guestName: ['Name', 'Guest Name', 'guest_name'],
   email: ['Email'],
   phone: ['Phone Number', 'Mobile', 'Phone'],
   reservationNumber: ['Reservation Number'],
   thirdPartyConfirmation: ['Third Party Confirmation Number'],
-  adults: ['Adults', 'Guests'],
+  adults: ['Adults', 'Guests', 'pax'],
   children: ['Children'],
-  roomNumber: ['Room Number', 'Units'],
+  roomNumber: ['Room Number', 'Units', 'unit'],
   accommodationTotal: ['Accommodation Total', 'Accommodation Total Amount'],
-  amountPaid: ['Amount Paid', 'Paid So Far Realized'],
-  checkIn: ['Check in Date', 'Check In'],
-  checkOut: ['Check out Date', 'Check Out'],
-  nights: ['Nights'],
+  amountPaid: ['Amount Paid', 'Paid So Far Realized', 'amount_paid'],
+  checkIn: ['Check in Date', 'Check In', 'check_in'],
+  checkOut: ['Check out Date', 'Check Out', 'check_out'],
+  nights: ['Nights', 'nights'],
   roomType: ['Room Type'],
   grandTotal: ['Grand Total'],
   deposit: ['Deposit'],
   balanceDue: ['Balance Due'],
   reservationDate: ['Reservation Date'],
-  source: ['Source', 'Platform'],
+  source: ['Source', 'Platform', 'source'],
   status: ['Status'],
   country: ['Country'],
   notes: ['Notes'],
+  nightlyRate: ['nightly_rate'],
+  payment: ['payment'],
 };
 
 const QUERY_KEYS_TO_INVALIDATE = [
@@ -247,6 +253,10 @@ function isCancelledStatus(status: string): boolean {
   return normalized.includes('cancelled') || normalized.includes('canceled');
 }
 
+function isCloudbedsFormat(headerMap: Map<string, number>): boolean {
+  return headerMap.has(normalizeHeader('Name')) || headerMap.has(normalizeHeader('Reservation Number'));
+}
+
 function getTodayManila(): string {
   return new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' });
 }
@@ -336,7 +346,7 @@ const ImportReservationsModal = ({ open, onOpenChange, guests, units, onComplete
   const fileRef = useRef<HTMLInputElement>(null);
 
   const downloadTemplate = () => {
-    const csv = `${TEMPLATE_HEADERS}\n${TEMPLATE_EXAMPLE}`;
+    const csv = `${SIMPLIFIED_TEMPLATE_HEADERS}\n${SIMPLIFIED_TEMPLATE_EXAMPLE}`;
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -366,13 +376,18 @@ const ImportReservationsModal = ({ open, onOpenChange, guests, units, onComplete
 
         const headers = table[0];
         const headerMap = new Map(headers.map((header, index) => [normalizeHeader(header), index]));
+        const cloudbeds = isCloudbedsFormat(headerMap);
         const requiredFields: ImportFieldKey[] = ['guestName', 'roomNumber', 'checkIn', 'checkOut'];
         const missingHeaders = requiredFields.filter((field) =>
           !FIELD_ALIASES[field].some((alias) => headerMap.has(normalizeHeader(alias))),
         );
 
         if (missingHeaders.length > 0) {
-          toast.error('CSV header is missing required reservation columns');
+          toast.error(
+            cloudbeds
+              ? 'CSV header is missing required reservation columns'
+              : 'CSV is missing required columns: guest_name, unit, check_in, check_out',
+          );
           return;
         }
 
@@ -425,6 +440,8 @@ const ImportReservationsModal = ({ open, onOpenChange, guests, units, onComplete
             notes: cleanOptionalValue(getHeaderValue(cells, headerMap, 'notes')),
             platform: resolvePlatform(source),
             externalReservationId,
+            nightlyRate: parseNumber(getHeaderValue(cells, headerMap, 'nightlyRate')),
+            payment: cleanOptionalValue(getHeaderValue(cells, headerMap, 'payment')),
             raw,
             errors: [],
             selected: true,
@@ -590,7 +607,7 @@ const ImportReservationsModal = ({ open, onOpenChange, guests, units, onComplete
 
           const roomTypeId = row.roomType ? roomTypeMap.get(normalizeText(row.roomType)) ?? null : null;
           const roomCount = Math.max(row.roomNumbers.length, 1);
-          const roomRate = deriveNightlyRate(row);
+          const roomRate = row.nightlyRate > 0 ? row.nightlyRate : deriveNightlyRate(row);
           const paidPerRoom = row.amountPaid > 0 ? row.amountPaid / roomCount : 0;
           const shouldMarkImportedStayOccupied = shouldSyncImportedRoomAsOccupied(row.checkIn, row.checkOut);
 
@@ -671,6 +688,7 @@ const ImportReservationsModal = ({ open, onOpenChange, guests, units, onComplete
               room_type: row.roomType || null,
               status: row.status || null,
               source: row.source || null,
+              payment: row.payment || null,
             };
 
             const { error: bookingError } = await from('resort_ops_bookings').insert({
