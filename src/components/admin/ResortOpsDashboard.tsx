@@ -809,7 +809,7 @@ const ResortOpsDashboard = ({ readOnly = false }: { readOnly?: boolean }) => {
               })
               .map((b: any) => {
                 const status = getBookingStatus(b);
-                const isPaid = Number(b.paid_amount) > 0;
+                const isPaid = b.payment_status === 'paid' || Number(b.paid_amount) > 0;
                 if (editingBooking?.id === b.id) {
                   return (
                     <div key={b.id} className="p-3 rounded border border-primary/50 space-y-2">
@@ -875,7 +875,7 @@ const ResortOpsDashboard = ({ readOnly = false }: { readOnly?: boolean }) => {
                       <div className="flex items-center gap-1">
                         {!isPaid && status !== 'STAYING' && <Badge variant="destructive" className="font-body text-[10px]">DUE</Badge>}
                         {status === 'STAYING' && <Badge className="bg-amber-500/20 text-amber-300 border-amber-500/30 text-[10px] font-body">STAYING</Badge>}
-                        {isPaid && (status === 'PAST' || status === 'DEPARTING') && <Badge className="bg-green-500/20 text-green-300 border-green-500/30 text-[10px] font-body">PAID</Badge>}
+                        {isPaid && (status === 'STAYING' || status === 'PAST' || status === 'DEPARTING') && <Badge className="bg-green-500/20 text-green-300 border-green-500/30 text-[10px] font-body">PAID</Badge>}
                         <EditBtn onClick={() => setEditingBooking({ ...b, room_rate: String(b.room_rate), paid_amount: String(b.paid_amount), adults: String(b.adults), addons_total: String(b.addons_total), commission_applied: String(b.commission_applied) })} />
                         <DelBtn onClick={() => deleteRow('resort_ops_bookings', b.id)} />
                       </div>
