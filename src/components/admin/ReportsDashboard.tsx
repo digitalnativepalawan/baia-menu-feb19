@@ -65,10 +65,10 @@ const ReportsDashboard = ({ readOnly = false }: { readOnly?: boolean }) => {
       const { data } = await supabase
         .from('orders')
         .select('*')
-        .in('status', ['Paid', 'Closed'])
-        .gte('closed_at', dateFrom)
-        .lte('closed_at', dateTo)
-        .order('closed_at', { ascending: false });
+        .eq('status', 'closed')
+        .gte('created_at', dateFrom)
+        .lte('created_at', dateTo)
+        .order('created_at', { ascending: false });
       return data || [];
     },
   });
@@ -491,12 +491,12 @@ const ReportsDashboard = ({ readOnly = false }: { readOnly?: boolean }) => {
         />
       </div>
 
-      {/* Summary cards — powered by historical_revenue */}
+      {/* Summary cards — powered by orders query */}
       <div className="grid grid-cols-2 gap-3">
         <Card className="bg-card/50 border-border">
           <CardContent className="p-3 text-center">
             <DollarSign className="w-4 h-4 text-gold mx-auto mb-1" />
-            <p className="font-display text-lg text-foreground">₱{histStats.totalRevenue.toLocaleString()}</p>
+            <p className="font-display text-lg text-foreground">₱{stats.revenue.toLocaleString()}</p>
             <p className="font-body text-xs text-cream-dim">Revenue</p>
           </CardContent>
         </Card>
@@ -510,14 +510,14 @@ const ReportsDashboard = ({ readOnly = false }: { readOnly?: boolean }) => {
         <Card className="bg-card/50 border-border">
           <CardContent className="p-3 text-center">
             <PiggyBank className="w-4 h-4 text-gold mx-auto mb-1" />
-            <p className="font-display text-lg text-foreground">₱{(histStats.totalRevenue - stats.totalFoodCost).toLocaleString()}</p>
+            <p className="font-display text-lg text-foreground">₱{stats.totalProfit.toLocaleString()}</p>
             <p className="font-body text-xs text-cream-dim">Profit</p>
           </CardContent>
         </Card>
         <Card className="bg-card/50 border-border">
           <CardContent className="p-3 text-center">
             <Percent className="w-4 h-4 text-gold mx-auto mb-1" />
-            <p className="font-display text-lg text-foreground">{histStats.totalRevenue > 0 ? (((histStats.totalRevenue - stats.totalFoodCost) / histStats.totalRevenue) * 100).toFixed(1) : '0.0'}%</p>
+            <p className="font-display text-lg text-foreground">{stats.revenue > 0 ? ((stats.totalProfit / stats.revenue) * 100).toFixed(1) : '0.0'}%</p>
             <p className="font-body text-xs text-cream-dim">Margin</p>
           </CardContent>
         </Card>
