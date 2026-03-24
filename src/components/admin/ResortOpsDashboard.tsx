@@ -16,6 +16,7 @@ import ImportReservationsModal from './ImportReservationsModal';
 import ExpenseReportsModal from './ExpenseReportsModal';
 import ResortOpsPnLReport from './ResortOpsPnLReport';
 import ExpenseBulkImportModal from './ExpenseBulkImportModal';
+import PaymentsCsvImportModal from './PaymentsCsvImportModal';
 import WebhookSettings from './WebhookSettings';
 import { format, startOfMonth, endOfMonth, getDaysInMonth, eachDayOfInterval, isWithinInterval, parseISO, isBefore } from 'date-fns';
 
@@ -329,6 +330,7 @@ const ResortOpsDashboard = ({ readOnly = false }: { readOnly?: boolean }) => {
   const [importOpen, setImportOpen] = useState(false);
   const [expenseReportsOpen, setExpenseReportsOpen] = useState(false);
   const [expenseBulkImportOpen, setExpenseBulkImportOpen] = useState(false);
+  const [paymentsCsvImportOpen, setPaymentsCsvImportOpen] = useState(false);
   const [expenseCategoryFilter, setExpenseCategoryFilter] = useState('all');
   const [expenseVatFilter, setExpenseVatFilter] = useState<'all' | 'VAT' | 'Non-VAT' | 'VAT-Exempt' | 'missing-tin'>('all');
   const [showAddExpenseForm, setShowAddExpenseForm] = useState(false);
@@ -707,6 +709,11 @@ const ResortOpsDashboard = ({ readOnly = false }: { readOnly?: boolean }) => {
           </SelectContent>
         </Select>
         <h2 className="font-display text-lg tracking-wider text-foreground">Resort Ops</h2>
+        {!readOnly && (
+          <Button size="sm" variant="outline" onClick={() => setPaymentsCsvImportOpen(true)} className="ml-auto">
+            <Upload className="w-3.5 h-3.5 mr-1.5" /> Import CSV
+          </Button>
+        )}
       </div>
 
       {/* KPI Cards */}
@@ -1180,6 +1187,12 @@ const ResortOpsDashboard = ({ readOnly = false }: { readOnly?: boolean }) => {
       <ExpenseBulkImportModal
         open={expenseBulkImportOpen}
         onOpenChange={setExpenseBulkImportOpen}
+        onComplete={invalidateAll}
+      />
+
+      <PaymentsCsvImportModal
+        open={paymentsCsvImportOpen}
+        onOpenChange={setPaymentsCsvImportOpen}
         onComplete={invalidateAll}
       />
 
