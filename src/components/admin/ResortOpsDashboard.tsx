@@ -277,7 +277,7 @@ const ResortOpsDashboard = ({ readOnly = false }: { readOnly?: boolean }) => {
       return sum + items.reduce((s: number, i: any) => s + (Number(menuMap.get(i.name) || 0) * (i.qty || 1)), 0);
     }, 0);
   }, [orders, menuItems]);
-  const foodRevenue = useMemo(() => orders.reduce((s: number, o: any) => s + Number(o.total || 0), 0), [orders]);
+  const foodRevenue = useMemo(() => monthPayments.reduce((s: number, payment: any) => s + Number(payment.amount || 0), 0), [monthPayments]);
   const totalRevenue = revenue + foodRevenue;
   const foodProfit = foodRevenue - foodCost;
   const netProfit = totalRevenue - foodCost - totalExpenses;
