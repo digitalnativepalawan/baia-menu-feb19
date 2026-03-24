@@ -65,10 +65,9 @@ const ReportsDashboard = ({ readOnly = false }: { readOnly?: boolean }) => {
       const { data } = await supabase
         .from('orders')
         .select('*')
-        .in('status', ['Paid', 'Closed'])
-        .gte('closed_at', dateFrom)
-        .lte('closed_at', dateTo)
-        .order('closed_at', { ascending: false });
+        .gte('created_at', dateFrom)
+        .lte('created_at', dateTo)
+        .order('created_at', { ascending: false });
       return data || [];
     },
   });
