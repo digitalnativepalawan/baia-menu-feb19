@@ -14,7 +14,6 @@ import { Plus, Trash2, AlertTriangle, Upload, Pencil, Check, X, Banknote, Calend
 import { Progress } from '@/components/ui/progress';
 import ImportReservationsModal from './ImportReservationsModal';
 import ExpenseReportsModal from './ExpenseReportsModal';
-import ResortOpsPnLReport from './ResortOpsPnLReport';
 import ExpenseBulkImportModal from './ExpenseBulkImportModal';
 import WebhookSettings from './WebhookSettings';
 import { format, startOfMonth, endOfMonth, getDaysInMonth, eachDayOfInterval, isWithinInterval, parseISO, isBefore } from 'date-fns';
@@ -740,14 +739,6 @@ const ResortOpsDashboard = ({ readOnly = false }: { readOnly?: boolean }) => {
           </Card>
         ))}
       </div>
-
-      {/* ── Monthly P&L Report ── */}
-      <ResortOpsPnLReport
-        monthBookings={monthBookings}
-        orders={orders}
-        monthExpenses={monthExpenses}
-        menuItems={menuItems}
-      />
 
       {/* ── Units ── */}
       <Card className="bg-card border-border">
