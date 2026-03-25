@@ -8,8 +8,6 @@ import {
   ResponsiveContainer, Cell,
 } from 'recharts';
 
-const BAR_CATEGORIES = new Set(['Cocktails', 'Wine', 'Spirits', 'Beer']);
-
 const P_AND_L_EXPENSE_ROWS: { label: string; keys: string[] }[] = [
   { label: 'Labor/Staff',               keys: ['Labor/Staff'] },
   { label: 'Utilities',                 keys: ['Utilities (Electric/Water/Gas/Fuel)'] },
@@ -24,20 +22,14 @@ const P_AND_L_EXPENSE_ROWS: { label: string; keys: string[] }[] = [
 
 interface Props {
   monthBookings: any[];
-  orders: any[];
+  monthPayments: any[];
   monthExpenses: any[];
-  menuItems: any[];
 }
 
 const fmt = (n: number) =>
   n.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-const ResortOpsPnLReport = ({ monthBookings, orders, monthExpenses, menuItems }: Props) => {
-  // ── Menu-item category lookup ──────────────────────────────────────────
-  const menuCategoryMap = useMemo(
-    () => new Map<string, string>(menuItems.map((m: any) => [m.name as string, m.category as string])),
-    [menuItems],
-  );
+const ResortOpsPnLReport = ({ monthBookings, monthPayments, monthExpenses }: Props) => {
 
   // ── Revenue breakdown ──────────────────────────────────────────────────
   const hotelAccommodation = useMemo(
@@ -50,42 +42,12 @@ const ResortOpsPnLReport = ({ monthBookings, orders, monthExpenses, menuItems }:
     [monthBookings],
   );
 
-  const { foodBevRevenue, barRevenue } = useMemo(() => {
-    let food = 0;
-    let bar = 0;
-    for (const order of orders) {
-      const items: any[] = order.items || [];
-      if (items.length === 0) {
-        food += Number(order.total || 0);
-        continue;
-      }
-      let orderFood = 0;
-      let orderBar = 0;
-      for (const item of items) {
-        const price = Number(item.price || 0) * (Number(item.qty) || 1);
-        const cat = menuCategoryMap.get(item.name) || '';
-        if (BAR_CATEGORIES.has(cat)) {
-          orderBar += price;
-        } else {
-          orderFood += price;
-        }
-      }
-      // Proportional split when order total doesn't match item sum (discounts, etc.)
-      const itemSum = orderFood + orderBar;
-      const orderTotal = Number(order.total || 0);
-      if (itemSum > 0 && Math.abs(itemSum - orderTotal) > 0.01) {
-        const ratio = orderTotal / itemSum;
-        food += orderFood * ratio;
-        bar += orderBar * ratio;
-      } else {
-        food += orderFood;
-        bar += orderBar;
-      }
-    }
-    return { foodBevRevenue: food, barRevenue: bar };
-  }, [orders, menuCategoryMap]);
+  const foodBevRevenue = useMemo(
+    () => monthPayments.reduce((s: number, p: any) => s + Number(p.amount || 0), 0),
+    [monthPayments],
+  );
 
-  const totalRevenue = hotelAccommodation + hotelServices + foodBevRevenue + barRevenue;
+  const totalRevenue = hotelAccommodation + hotelServices + foodBevRevenue;
 
   // ── Expense breakdown ──────────────────────────────────────────────────
   const expenseByCategory = useMemo(() => {
@@ -125,7 +87,6 @@ const ResortOpsPnLReport = ({ monthBookings, orders, monthExpenses, menuItems }:
   const revenueRows = [
     { label: 'Hotel Accommodation', value: hotelAccommodation },
     { label: 'Food & Beverage',     value: foodBevRevenue },
-    { label: 'Bar Income',          value: barRevenue },
     { label: 'Hotel Services',      value: hotelServices },
   ];
 
