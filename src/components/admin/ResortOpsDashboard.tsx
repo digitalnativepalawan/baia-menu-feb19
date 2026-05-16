@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from 'sonner';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Plus, Trash2, AlertTriangle, Upload, Pencil, Check, X, Banknote, CalendarPlus, Printer, Settings, BarChart3, FileUp, ExternalLink, Camera, Image, ScanLine, Loader2, Info } from 'lucide-react';
+import { Plus, Trash2, AlertTriangle, Upload, Pencil, Check, X, Banknote, CalendarPlus, Printer, Settings, BarChart3, FileUp, ExternalLink, Camera, Image, ScanLine, Loader2, Info, TrendingUp, Home } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import ImportReservationsModal from './ImportReservationsModal';
 import ExpenseReportsModal from './ExpenseReportsModal';
@@ -29,7 +29,6 @@ export const EXPENSE_CATEGORIES = [
 export const VAT_STATUSES = ['VAT', 'Non-VAT', 'VAT-Exempt', 'Zero-Rated'] as const;
 export const PAYMENT_METHODS = ['Cash', 'Bank Transfer', 'GCash', 'Credit Card'] as const;
 
-/** Auto-compute VAT fields from vat_status + total_amount */
 export const computeVatFields = (vatStatus: string, totalAmount: number) => {
   const ta = totalAmount || 0;
   switch (vatStatus) {
@@ -193,50 +192,36 @@ const ExpenseFormFields = ({ data, onChange, scannedFields, scanningReceipt, onS
 const ResortOpsDashboard = ({ readOnly = false }: { readOnly?: boolean }) => {
   const qc = useQueryClient();
   
-  // Date range state
-  const [dateFrom, setDateFrom] = useState(() => {
-    return '2025-01-01';
-  });
-  const [dateTo, setDateTo] = useState(() => {
-    return format(new Date(), 'yyyy-MM-dd');
-  });
+  const [dateFrom, setDateFrom] = useState(() => { return '2025-01-01'; });
+  const [dateTo, setDateTo] = useState(() => { return format(new Date(), 'yyyy-MM-dd'); });
   const [datePreset, setDatePreset] = useState<'ytd' | 'custom'>('ytd');
 
   const setYTD = () => {
     const now = new Date();
-    const startOfYear = `${now.getFullYear()}-01-01`;
-    setDateFrom(startOfYear);
+    setDateFrom(`${now.getFullYear()}-01-01`);
     setDateTo(format(now, 'yyyy-MM-dd'));
     setDatePreset('ytd');
   };
 
   const setCurrentMonth = () => {
     const now = new Date();
-    const startOfMonthDate = startOfMonth(now);
-    const endOfMonthDate = endOfMonth(now);
-    setDateFrom(format(startOfMonthDate, 'yyyy-MM-dd'));
-    setDateTo(format(endOfMonthDate, 'yyyy-MM-dd'));
+    setDateFrom(format(startOfMonth(now), 'yyyy-MM-dd'));
+    setDateTo(format(endOfMonth(now), 'yyyy-MM-dd'));
     setDatePreset('custom');
   };
 
   const setLastMonth = () => {
     const lastMonthDate = subMonths(new Date(), 1);
-    const start = startOfMonth(lastMonthDate);
-    const end = endOfMonth(lastMonthDate);
-    setDateFrom(format(start, 'yyyy-MM-dd'));
-    setDateTo(format(end, 'yyyy-MM-dd'));
+    setDateFrom(format(startOfMonth(lastMonthDate), 'yyyy-MM-dd'));
+    setDateTo(format(endOfMonth(lastMonthDate), 'yyyy-MM-dd'));
     setDatePreset('custom');
   };
-
-  const monthStartStr = dateFrom;
-  const monthEndStr = dateTo;
 
   const startDateObj = parseISO(dateFrom);
   const endDateObj = parseISO(dateTo);
   const daysArray = eachDayOfInterval({ start: startDateObj, end: endDateObj });
   const daysInMonth = daysArray.length;
 
-  // ── Data queries ──
   const { data: units = [] } = useQuery({
     queryKey: ['resort-ops-units'],
     queryFn: async () => { const { data } = await from('resort_ops_units').select('*').order('name'); return data || []; },
@@ -281,13 +266,11 @@ const ResortOpsDashboard = ({ readOnly = false }: { readOnly?: boolean }) => {
     queryFn: async () => { const { data } = await supabase.from('menu_items').select('*'); return data || []; },
   });
 
-  // ── Filtered data ──
   const monthBookings = useMemo(() => bookings.filter((b: any) => b.check_in >= dateFrom && b.check_in <= dateTo), [bookings, dateFrom, dateTo]);
   const monthExpenses = useMemo(() => expenses.filter((e: any) => e.expense_date >= dateFrom && e.expense_date <= dateTo), [expenses, dateFrom, dateTo]);
   const monthTasks = useMemo(() => tasks.filter((t: any) => t.due_date >= dateFrom && t.due_date <= dateTo), [tasks, dateFrom, dateTo]);
   const monthPayments = useMemo(() => payments.filter((p: any) => p.expected_date >= dateFrom && p.expected_date <= dateTo), [payments, dateFrom, dateTo]);
 
-  // ── KPI calculations ──
   const revenue = useMemo(() => monthBookings.reduce((s: number, b: any) => s + Number(b.paid_amount || 0), 0), [monthBookings]);
   const totalExpenses = useMemo(() => monthExpenses.reduce((s: number, e: any) => s + Number(e.amount || 0), 0), [monthExpenses]);
   const foodCost = useMemo(() => {
@@ -298,21 +281,15 @@ const ResortOpsDashboard = ({ readOnly = false }: { readOnly?: boolean }) => {
     }, 0);
   }, [orders, menuItems]);
   
-  const foodRevenue = useMemo(
-    () => orders.reduce((s, o) => s + Number(o.total || 0), 0),
-    [orders]
-  );
-  
+  const foodRevenue = useMemo(() => orders.reduce((s, o) => s + Number(o.total || 0), 0), [orders]);
   const totalRevenue = revenue + foodRevenue;
   const foodProfit = foodRevenue - foodCost;
   const netProfit = totalRevenue - foodCost - totalExpenses;
   const margin = totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0;
 
-  // ── Lookup helpers ──
   const guestMap = useMemo(() => new Map(guests.map((g: any) => [g.id, g.full_name])), [guests]);
   const unitMap = useMemo(() => new Map(units.map((u: any) => [u.id, u])), [units]);
 
-  // ── Occupancy ──
   const occupancyData = useMemo(() => {
     return units.map((unit: any) => {
       const unitBookings = bookings.filter((b: any) => b.unit_id === unit.id);
@@ -327,7 +304,11 @@ const ResortOpsDashboard = ({ readOnly = false }: { readOnly?: boolean }) => {
     });
   }, [units, bookings, daysArray, daysInMonth]);
 
-  // ── Unit performance ──
+  const avgOccupancy = useMemo(() => {
+    if (occupancyData.length === 0) return 0;
+    return occupancyData.reduce((s: number, o: any) => s + o.pct, 0) / occupancyData.length;
+  }, [occupancyData]);
+
   const unitPerformance = useMemo(() => {
     return units.map((unit: any) => {
       const projected = Number(unit.base_price) * daysInMonth;
@@ -339,13 +320,11 @@ const ResortOpsDashboard = ({ readOnly = false }: { readOnly?: boolean }) => {
     });
   }, [units, monthBookings, daysInMonth, occupancyData]);
 
-  // ── Inline add forms state ──
   const [newExpense, setNewExpense] = useState({ ...EMPTY_EXPENSE });
   const [newTask, setNewTask] = useState({ title: '', category: '', due_date: '', priority: 'medium', description: '' });
   const [newAsset, setNewAsset] = useState({ name: '', type: '', balance: '' });
   const [newPayment, setNewPayment] = useState({ source: '', amount: '', expected_date: '' });
   const [newUnit, setNewUnit] = useState({ name: '', type: '', base_price: '', capacity: '' });
-  
   const [newBooking, setNewBooking] = useState({ guest_id: '', guest_name: '', unit_id: '', platform: '', check_in: '', check_out: '', adults: '1', room_rate: '', addons_total: '0', paid_amount: '0', commission_applied: '0' });
   const [guestSearch, setGuestSearch] = useState('');
   const [showGuestDropdown, setShowGuestDropdown] = useState(false);
@@ -361,8 +340,6 @@ const ResortOpsDashboard = ({ readOnly = false }: { readOnly?: boolean }) => {
   const [scannedFields, setScannedFields] = useState<Set<string>>(new Set());
   const [ledgerFilter, setLedgerFilter] = useState<'all' | 'staying' | 'arriving' | 'departing' | 'unpaid'>('all');
   const [showWebhook, setShowWebhook] = useState(false);
-
-  // ── Editing states ──
   const [editingUnit, setEditingUnit] = useState<any>(null);
   const [editingBooking, setEditingBooking] = useState<any>(null);
   const [editingExpense, setEditingExpense] = useState<any>(null);
@@ -370,7 +347,6 @@ const ResortOpsDashboard = ({ readOnly = false }: { readOnly?: boolean }) => {
   const [editingAsset, setEditingAsset] = useState<any>(null);
   const [editingPayment, setEditingPayment] = useState<any>(null);
 
-  // ── CRUD helpers ──
   const invalidateAll = () => {
     ['resort-ops-units','resort-ops-guests','resort-ops-bookings','resort-ops-expenses','resort-ops-tasks','resort-ops-assets','resort-ops-payments'].forEach(k => qc.invalidateQueries({ queryKey: [k] }));
   };
@@ -379,25 +355,14 @@ const ResortOpsDashboard = ({ readOnly = false }: { readOnly?: boolean }) => {
     const totalAmount = parseFloat(e.amount) || 0;
     const vatFields = computeVatFields(e.vat_status, totalAmount);
     return {
-      name: e.name,
-      supplier_tin: e.supplier_tin || null,
-      vat_status: e.vat_status,
-      invoice_number: e.invoice_number || null,
-      official_receipt_number: e.official_receipt_number || null,
-      category: e.category,
-      description: e.description || null,
-      amount: totalAmount,
-      vatable_sale: vatFields.vatable_sale,
-      vat_amount: vatFields.vat_amount,
-      vat_exempt_amount: vatFields.vat_exempt_amount,
-      zero_rated_amount: vatFields.zero_rated_amount,
-      withholding_tax: parseFloat(e.withholding_tax) || 0,
-      payment_method: e.payment_method || null,
-      is_paid: e.is_paid,
-      project_unit: e.project_unit || null,
-      notes: e.notes || null,
-      image_url: e.image_url || null,
-      expense_date: e.expense_date,
+      name: e.name, supplier_tin: e.supplier_tin || null, vat_status: e.vat_status,
+      invoice_number: e.invoice_number || null, official_receipt_number: e.official_receipt_number || null,
+      category: e.category, description: e.description || null, amount: totalAmount,
+      vatable_sale: vatFields.vatable_sale, vat_amount: vatFields.vat_amount,
+      vat_exempt_amount: vatFields.vat_exempt_amount, zero_rated_amount: vatFields.zero_rated_amount,
+      withholding_tax: parseFloat(e.withholding_tax) || 0, payment_method: e.payment_method || null,
+      is_paid: e.is_paid, project_unit: e.project_unit || null, notes: e.notes || null,
+      image_url: e.image_url || null, expense_date: e.expense_date,
     };
   };
 
@@ -493,9 +458,7 @@ const ResortOpsDashboard = ({ readOnly = false }: { readOnly?: boolean }) => {
     }
     if (!guestId || !newBooking.unit_id || !newBooking.check_in || !newBooking.check_out) { toast.error('Fill in all required fields'); return; }
     const conflicting = (bookings as any[]).find((b: any) =>
-      b.unit_id === newBooking.unit_id &&
-      b.check_in < newBooking.check_out &&
-      b.check_out > newBooking.check_in
+      b.unit_id === newBooking.unit_id && b.check_in < newBooking.check_out && b.check_out > newBooking.check_in
     );
     if (conflicting) {
       const cName = (guests as any[]).find((g) => g.id === conflicting.guest_id)?.full_name || conflicting.platform || 'another guest';
@@ -517,18 +480,14 @@ const ResortOpsDashboard = ({ readOnly = false }: { readOnly?: boolean }) => {
   const saveUnit = async () => {
     if (!editingUnit) return;
     await from('resort_ops_units').update({ name: editingUnit.name, type: editingUnit.type, base_price: parseFloat(editingUnit.base_price) || 0, capacity: parseInt(editingUnit.capacity) || 2 }).eq('id', editingUnit.id);
-    setEditingUnit(null);
-    invalidateAll();
-    toast.success('Unit updated');
+    setEditingUnit(null); invalidateAll(); toast.success('Unit updated');
   };
 
   const saveBooking = async () => {
     if (!editingBooking) return;
     const conflicting = (bookings as any[]).find((b: any) =>
-      b.unit_id === editingBooking.unit_id &&
-      b.id !== editingBooking.id &&
-      b.check_in < editingBooking.check_out &&
-      b.check_out > editingBooking.check_in
+      b.unit_id === editingBooking.unit_id && b.id !== editingBooking.id &&
+      b.check_in < editingBooking.check_out && b.check_out > editingBooking.check_in
     );
     if (conflicting) {
       const cName = (guests as any[]).find((g) => g.id === conflicting.guest_id)?.full_name || conflicting.platform || 'another guest';
@@ -541,49 +500,37 @@ const ResortOpsDashboard = ({ readOnly = false }: { readOnly?: boolean }) => {
       room_rate: parseFloat(editingBooking.room_rate) || 0, addons_total: parseFloat(editingBooking.addons_total) || 0,
       paid_amount: parseFloat(editingBooking.paid_amount) || 0, commission_applied: parseFloat(editingBooking.commission_applied) || 0,
     }).eq('id', editingBooking.id);
-    setEditingBooking(null);
-    invalidateAll();
-    toast.success('Booking updated');
+    setEditingBooking(null); invalidateAll(); toast.success('Booking updated');
   };
 
   const saveExpense = async () => {
     if (!editingExpense) return;
     const err = validateExpense(editingExpense);
     if (err) { toast.error(err); return; }
-    const payload = buildExpensePayload(editingExpense);
-    await from('resort_ops_expenses').update(payload as any).eq('id', editingExpense.id);
-    setEditingExpense(null);
-    invalidateAll();
-    toast.success('Expense updated');
+    await from('resort_ops_expenses').update(buildExpensePayload(editingExpense) as any).eq('id', editingExpense.id);
+    setEditingExpense(null); invalidateAll(); toast.success('Expense updated');
   };
 
   const saveTask = async () => {
     if (!editingTask) return;
     await from('resort_ops_tasks').update({ title: editingTask.title, category: editingTask.category, due_date: editingTask.due_date, priority: editingTask.priority, description: editingTask.description || '' }).eq('id', editingTask.id);
-    setEditingTask(null);
-    invalidateAll();
-    toast.success('Task updated');
+    setEditingTask(null); invalidateAll(); toast.success('Task updated');
   };
 
   const saveAsset = async () => {
     if (!editingAsset) return;
     await from('resort_ops_assets').update({ name: editingAsset.name, type: editingAsset.type, balance: parseFloat(editingAsset.balance) || 0 }).eq('id', editingAsset.id);
-    setEditingAsset(null);
-    invalidateAll();
-    toast.success('Asset updated');
+    setEditingAsset(null); invalidateAll(); toast.success('Asset updated');
   };
 
   const savePayment = async () => {
     if (!editingPayment) return;
     await from('resort_ops_incoming_payments').update({ source: editingPayment.source, amount: parseFloat(editingPayment.amount) || 0, expected_date: editingPayment.expected_date }).eq('id', editingPayment.id);
-    setEditingPayment(null);
-    invalidateAll();
-    toast.success('Payment updated');
+    setEditingPayment(null); invalidateAll(); toast.success('Payment updated');
   };
 
   const fmt = (n: number) => n.toLocaleString('en-PH', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
   const fmtDec = (n: number) => n.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-
   const today = format(new Date(), 'yyyy-MM-dd');
 
   const formatDateRange = () => {
@@ -592,10 +539,8 @@ const ResortOpsDashboard = ({ readOnly = false }: { readOnly?: boolean }) => {
       const fromDate = new Date(dateFrom);
       const toDate = new Date(dateTo);
       if (isNaN(fromDate.getTime()) || isNaN(toDate.getTime())) return '';
-      return `${format(fromDate, 'MMM d, yyyy')} - ${format(toDate, 'MMM d, yyyy')}`;
-    } catch {
-      return '';
-    }
+      return `${format(fromDate, 'MMM d, yyyy')} – ${format(toDate, 'MMM d, yyyy')}`;
+    } catch { return ''; }
   };
 
   const EditBtn = ({ onClick }: { onClick: () => void }) => (
@@ -615,7 +560,6 @@ const ResortOpsDashboard = ({ readOnly = false }: { readOnly?: boolean }) => {
     if (file.size > 10 * 1024 * 1024) { toast.error('Image must be under 10MB'); return; }
     setScanningReceipt(true);
     setScannedFields(new Set());
-
     try {
       const ext = file.name.split('.').pop() || 'jpg';
       const now = new Date();
@@ -623,55 +567,41 @@ const ResortOpsDashboard = ({ readOnly = false }: { readOnly?: boolean }) => {
       const month = String(now.getMonth() + 1).padStart(2, '0');
       const safeName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
       const storagePath = `receipts/${year}/${month}/${safeName}`;
-      
       toast.loading('Uploading & scanning receipt...', { id: 'receipt-scan' });
-      
       const { error: uploadError } = await supabase.storage.from('receipts').upload(storagePath, file);
       if (uploadError) { toast.error(`Upload failed: ${uploadError.message}`, { id: 'receipt-scan' }); return; }
       const { data: urlData } = supabase.storage.from('receipts').getPublicUrl(storagePath);
-
       const reader = new FileReader();
       const base64 = await new Promise<string>((resolve, reject) => {
         reader.onload = () => resolve(reader.result as string);
         reader.onerror = reject;
         reader.readAsDataURL(file);
       });
-
-      const { data: scanResult, error: fnError } = await supabase.functions.invoke('scan-receipt', {
-        body: { image_base64: base64 },
-      });
-
+      const { data: scanResult, error: fnError } = await supabase.functions.invoke('scan-receipt', { body: { image_base64: base64 } });
       if (fnError) { toast.error(`Scan failed: ${fnError.message}`, { id: 'receipt-scan' }); return; }
       if (!scanResult?.success) { toast.error(scanResult?.error || 'Could not read receipt', { id: 'receipt-scan' }); return; }
-
       const d = scanResult.data;
       const filledFields = new Set<string>();
       const updated = { ...data, image_url: urlData.publicUrl };
-
       if (d.supplier_name) { updated.name = d.supplier_name; filledFields.add('name'); }
       if (d.supplier_tin) { updated.supplier_tin = d.supplier_tin; filledFields.add('supplier_tin'); }
-      if (d.vat_status && ['VAT', 'Non-VAT', 'VAT-Exempt', 'Zero-Rated'].includes(d.vat_status)) {
-        updated.vat_status = d.vat_status; filledFields.add('vat_status');
-      }
+      if (d.vat_status && ['VAT', 'Non-VAT', 'VAT-Exempt', 'Zero-Rated'].includes(d.vat_status)) { updated.vat_status = d.vat_status; filledFields.add('vat_status'); }
       if (d.supplier_tin && !d.vat_status) { updated.vat_status = 'VAT'; filledFields.add('vat_status'); }
       if (d.invoice_number) { updated.invoice_number = d.invoice_number; filledFields.add('invoice_number'); }
       if (d.official_receipt_number) { updated.official_receipt_number = d.official_receipt_number; filledFields.add('official_receipt_number'); }
       if (d.date) { updated.expense_date = d.date; filledFields.add('expense_date'); }
       if (d.total_amount != null) { updated.amount = String(d.total_amount); filledFields.add('amount'); }
       if (d.description) { updated.description = d.description; filledFields.add('description'); }
-
       if (updated.vat_status === 'VAT' && d.total_amount && !d.vat_amount) {
         const vatAmt = d.total_amount / 1.12 * 0.12;
         updated.notes = (updated.notes ? updated.notes + '\n' : '') + `Auto-computed VAT: ₱${vatAmt.toFixed(2)} from total ₱${d.total_amount}`;
       }
-
       if (d.vatable_sale != null && d.vat_amount != null && d.total_amount != null) {
         const sum = (d.vatable_sale || 0) + (d.vat_amount || 0);
         if (Math.abs(sum - d.total_amount) > 1) {
           toast.warning(`VAT breakdown (₱${sum.toFixed(2)}) doesn't match total (₱${d.total_amount}). Please verify.`, { duration: 6000 });
         }
       }
-
       onChange(updated);
       setScannedFields(filledFields);
       toast.success(`Receipt scanned! ${filledFields.size} fields extracted (${d.confidence || 'unknown'} confidence). Please review before saving.`, { id: 'receipt-scan', duration: 5000 });
@@ -709,93 +639,97 @@ const ResortOpsDashboard = ({ readOnly = false }: { readOnly?: boolean }) => {
 
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
-      {/* Date Range Selector */}
-      <div className="space-y-3">
-        <div className="flex items-center gap-3 flex-wrap">
-          <h2 className="font-display text-lg tracking-wider text-foreground">Resort Ops</h2>
-          <div className="flex gap-2">
-            <Button 
-              size="sm" 
-              variant={datePreset === 'ytd' ? 'default' : 'outline'}
-              onClick={setYTD}
-              className="text-xs h-8"
-            >
-              YTD
-            </Button>
-            <Button 
-              size="sm" 
-              variant="outline"
-              onClick={setCurrentMonth}
-              className="text-xs h-8"
-            >
-              This Month
-            </Button>
-            <Button 
-              size="sm" 
-              variant="outline"
-              onClick={setLastMonth}
-              className="text-xs h-8"
-            >
-              Last Month
-            </Button>
+
+      {/* ── Header + Date Range ── */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between flex-wrap gap-3">
+          <div>
+            <p className="font-body text-[10px] tracking-[0.3em] uppercase text-gold/70 mb-0.5">Control Tower</p>
+            <h2 className="font-display text-2xl tracking-wide text-foreground">Resort Ops</h2>
+          </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            {(['ytd', 'month', 'last'] as const).map((p) => {
+              const labels = { ytd: 'YTD', month: 'This Month', last: 'Last Month' };
+              const isActive = p === 'ytd' ? datePreset === 'ytd' : false;
+              return (
+                <button
+                  key={p}
+                  onClick={p === 'ytd' ? setYTD : p === 'month' ? setCurrentMonth : setLastMonth}
+                  className={`h-8 px-4 rounded-lg font-body text-xs transition-all ${
+                    isActive
+                      ? 'bg-gold/15 border border-gold/40 text-gold'
+                      : 'border border-border/60 text-muted-foreground hover:border-gold/30 hover:text-foreground'
+                  }`}
+                >
+                  {labels[p]}
+                </button>
+              );
+            })}
           </div>
         </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          <label className="font-body text-xs text-muted-foreground">From:</label>
-          <Input 
-            type="date" 
-            value={dateFrom} 
-            onChange={(e) => {
-              setDateFrom(e.target.value);
-              setDatePreset('custom');
-            }}
-            className="w-36 h-8 text-sm"
-          />
-          <label className="font-body text-xs text-muted-foreground">To:</label>
-          <Input 
-            type="date" 
-            value={dateTo} 
-            onChange={(e) => {
-              setDateTo(e.target.value);
-              setDatePreset('custom');
-            }}
-            className="w-36 h-8 text-sm"
-          />
-          <span className="font-body text-xs text-muted-foreground ml-2">
-            {formatDateRange()}
-          </span>
+        <div className="flex items-center gap-3 flex-wrap">
+          <div className="flex items-center gap-2">
+            <span className="font-body text-xs text-muted-foreground">From</span>
+            <Input type="date" value={dateFrom} onChange={(e) => { setDateFrom(e.target.value); setDatePreset('custom'); }} className="w-36 h-8 text-sm bg-secondary border-border" />
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="font-body text-xs text-muted-foreground">To</span>
+            <Input type="date" value={dateTo} onChange={(e) => { setDateTo(e.target.value); setDatePreset('custom'); }} className="w-36 h-8 text-sm bg-secondary border-border" />
+          </div>
+          <span className="font-body text-xs text-muted-foreground">{formatDateRange()}</span>
         </div>
       </div>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      {/* ── KPI Cards ── */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         {[
-          { label: 'Room Revenue', value: revenue, color: 'text-green-400' },
-          { label: 'Food Revenue', value: foodRevenue, color: 'text-blue-400' },
-          { label: 'Expenses', value: totalExpenses, color: 'text-red-400' },
-          { label: 'Net Profit', value: netProfit, color: netProfit >= 0 ? 'text-green-400' : 'text-red-400' },
+          {
+            label: 'Total Revenue',
+            value: `₱${fmt(totalRevenue)}`,
+            sub: `Room ₱${fmt(revenue)} · F&B ₱${fmt(foodRevenue)}`,
+            color: 'text-emerald-400',
+            iconBg: 'bg-emerald-500/10 border-emerald-500/20',
+            iconColor: 'text-emerald-400',
+            icon: <TrendingUp className="w-5 h-5" />,
+          },
+          {
+            label: 'Net Profit',
+            value: `₱${fmt(netProfit)}`,
+            sub: `${margin.toFixed(1)}% margin`,
+            color: netProfit >= 0 ? 'text-blue-400' : 'text-red-400',
+            iconBg: netProfit >= 0 ? 'bg-blue-500/10 border-blue-500/20' : 'bg-red-500/10 border-red-500/20',
+            iconColor: netProfit >= 0 ? 'text-blue-400' : 'text-red-400',
+            icon: <Banknote className="w-5 h-5" />,
+          },
+          {
+            label: 'Expenses',
+            value: `₱${fmt(totalExpenses)}`,
+            sub: `${monthExpenses.length} entries · Cost ₱${fmt(foodCost)}`,
+            color: 'text-red-400',
+            iconBg: 'bg-red-500/10 border-red-500/20',
+            iconColor: 'text-red-400',
+            icon: <BarChart3 className="w-5 h-5" />,
+          },
+          {
+            label: 'Occupancy',
+            value: `${avgOccupancy.toFixed(0)}%`,
+            sub: `${units.length} unit${units.length !== 1 ? 's' : ''} · ${monthBookings.length} bookings`,
+            color: 'text-gold',
+            iconBg: 'bg-gold/10 border-gold/20',
+            iconColor: 'text-gold',
+            icon: <Home className="w-5 h-5" />,
+          },
         ].map(k => (
-          <Card key={k.label} className="bg-card border-border">
-            <CardContent className="p-3">
-              <p className="font-body text-xs text-muted-foreground">{k.label}</p>
-              <p className={`font-display text-lg ${k.color}`}>₱{fmt(k.value)}</p>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        {[
-          { label: 'Food Cost', value: foodCost },
-          { label: 'Food Profit', value: foodProfit },
-          { label: 'Total Revenue', value: totalRevenue },
-          { label: 'Margin', value: margin, isMgn: true },
-        ].map(k => (
-          <Card key={k.label} className="bg-card border-border">
-            <CardContent className="p-3">
-              <p className="font-body text-xs text-muted-foreground">{k.label}</p>
-              <p className="font-display text-lg text-foreground">{k.isMgn ? `${margin.toFixed(1)}%` : `₱${fmt(k.value)}`}</p>
-            </CardContent>
-          </Card>
+          <div key={k.label} className="rounded-2xl border border-gold/10 bg-card/80 backdrop-blur-sm p-4 space-y-3 hover:border-gold/25 transition-colors">
+            <div className={`w-10 h-10 rounded-xl border ${k.iconBg} flex items-center justify-center ${k.iconColor}`}>
+              {k.icon}
+            </div>
+            <div>
+              <p className={`font-display text-2xl leading-tight ${k.color}`}>{k.value}</p>
+              <p className="font-body text-xs text-muted-foreground mt-1 font-medium">{k.label}</p>
+              <p className="font-body text-[10px] text-muted-foreground/60 mt-0.5">{k.sub}</p>
+            </div>
+          </div>
         ))}
       </div>
 
@@ -808,8 +742,8 @@ const ResortOpsDashboard = ({ readOnly = false }: { readOnly?: boolean }) => {
       />
 
       {/* ── Units ── */}
-      <Card className="bg-card border-border">
-        <CardHeader className="pb-3"><CardTitle className="font-display text-sm tracking-wider">Units / Rooms</CardTitle></CardHeader>
+      <Card className="bg-card/80 border-gold/10 hover:border-gold/20 transition-colors">
+        <CardHeader className="pb-3"><CardTitle className="font-display text-base tracking-wider">Units / Rooms</CardTitle></CardHeader>
         <CardContent className="space-y-2">
           <div className="space-y-2">
             {units.map((u: any) =>
@@ -822,7 +756,7 @@ const ResortOpsDashboard = ({ readOnly = false }: { readOnly?: boolean }) => {
                   <SaveCancelBtns onSave={saveUnit} onCancel={() => setEditingUnit(null)} />
                 </div>
               ) : (
-                <div key={u.id} className="flex items-center justify-between py-2 px-2 border-b border-border">
+                <div key={u.id} className="flex items-center justify-between py-2 px-2 border-b border-border/50">
                   <div className="flex-1">
                     <p className="font-body text-sm text-foreground">{u.name} <span className="text-muted-foreground text-xs">({u.type})</span></p>
                     <p className="font-body text-xs text-muted-foreground">₱{fmt(Number(u.base_price))}/night · {u.capacity} pax</p>
@@ -846,9 +780,9 @@ const ResortOpsDashboard = ({ readOnly = false }: { readOnly?: boolean }) => {
       </Card>
 
       {/* ── Reservations Ledger ── */}
-      <Card className="bg-card border-border">
+      <Card className="bg-card/80 border-gold/10 hover:border-gold/20 transition-colors">
         <CardHeader className="pb-3 flex flex-row items-center justify-between space-y-0">
-          <CardTitle className="font-display text-sm tracking-wider">Reservations</CardTitle>
+          <CardTitle className="font-display text-base tracking-wider">Reservations</CardTitle>
           <div className="flex gap-1.5">
             <Button size="sm" variant="outline" className="text-xs h-7" onClick={() => setShowWebhook(true)}><Settings className="w-3.5 h-3.5 mr-1" /> Webhook</Button>
             <Button size="sm" variant="outline" className="text-xs h-7" onClick={() => setImportOpen(true)}><Upload className="w-3.5 h-3.5 mr-1" /> Import</Button>
@@ -881,33 +815,20 @@ const ResortOpsDashboard = ({ readOnly = false }: { readOnly?: boolean }) => {
                         <div className="relative">
                           <Input
                             value={editGuestSearch || (editingBooking.guest_id ? (guestMap.get(editingBooking.guest_id) || '') : '')}
-                            onChange={e => {
-                              const val = e.target.value;
-                              setEditGuestSearch(val);
-                              setEditingBooking((p: any) => ({ ...p, guest_id: '' }));
-                              setShowEditGuestDropdown(val.length >= 1);
-                            }}
+                            onChange={e => { const val = e.target.value; setEditGuestSearch(val); setEditingBooking((p: any) => ({ ...p, guest_id: '' })); setShowEditGuestDropdown(val.length >= 1); }}
                             onFocus={() => { if ((editGuestSearch || guestMap.get(editingBooking.guest_id) || '').length >= 1) setShowEditGuestDropdown(true); }}
                             onBlur={() => setTimeout(() => setShowEditGuestDropdown(false), 200)}
-                            placeholder="Guest name *"
-                            className={inputCls}
+                            placeholder="Guest name *" className={inputCls}
                           />
                           {showEditGuestDropdown && (
                             <div className="absolute z-50 w-full mt-1 border border-border rounded-lg bg-card shadow-lg max-h-40 overflow-y-auto">
-                              {guests
-                                .filter((g: any) => g.full_name.toLowerCase().includes((editGuestSearch || '').toLowerCase()))
-                                .slice(0, 6)
-                                .map((g: any) => (
-                                  <button key={g.id} type="button" onMouseDown={e => e.preventDefault()}
-                                    onClick={() => {
-                                      setEditingBooking((p: any) => ({ ...p, guest_id: g.id }));
-                                      setEditGuestSearch(g.full_name);
-                                      setShowEditGuestDropdown(false);
-                                    }}
-                                    className="w-full px-3 py-2 text-left hover:bg-secondary transition-colors">
-                                    <p className="font-body text-sm text-foreground">{g.full_name}</p>
-                                  </button>
-                                ))}
+                              {guests.filter((g: any) => g.full_name.toLowerCase().includes((editGuestSearch || '').toLowerCase())).slice(0, 6).map((g: any) => (
+                                <button key={g.id} type="button" onMouseDown={e => e.preventDefault()}
+                                  onClick={() => { setEditingBooking((p: any) => ({ ...p, guest_id: g.id })); setEditGuestSearch(g.full_name); setShowEditGuestDropdown(false); }}
+                                  className="w-full px-3 py-2 text-left hover:bg-secondary transition-colors">
+                                  <p className="font-body text-sm text-foreground">{g.full_name}</p>
+                                </button>
+                              ))}
                             </div>
                           )}
                         </div>
@@ -930,7 +851,7 @@ const ResortOpsDashboard = ({ readOnly = false }: { readOnly?: boolean }) => {
                   );
                 }
                 return (
-                  <div key={b.id} className="p-3 rounded border border-border space-y-1">
+                  <div key={b.id} className="p-3 rounded border border-border/50 space-y-1 hover:border-gold/20 transition-colors">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <p className="font-body text-sm text-foreground font-medium">{guestMap.get(b.guest_id) || 'Unknown'}</p>
@@ -943,56 +864,35 @@ const ResortOpsDashboard = ({ readOnly = false }: { readOnly?: boolean }) => {
                         <DelBtn onClick={() => deleteRow('resort_ops_bookings', b.id)} />
                       </div>
                     </div>
-                    <p className="font-body text-xs text-muted-foreground">
-                      {unitMap.get(b.unit_id)?.name || '–'} · {b.check_in} → {b.check_out} · {b.adults} pax
-                    </p>
-                    <p className="font-body text-xs text-muted-foreground">
-                      Rate: ₱{fmt(Number(b.room_rate))} · Paid: ₱{fmt(Number(b.paid_amount))}
-                      {Number(b.commission_applied) > 0 && ` · Comm: ₱${fmt(Number(b.commission_applied))}`}
-                    </p>
+                    <p className="font-body text-xs text-muted-foreground">{unitMap.get(b.unit_id)?.name || '–'} · {b.check_in} → {b.check_out} · {b.adults} pax</p>
+                    <p className="font-body text-xs text-muted-foreground">Rate: ₱{fmt(Number(b.room_rate))} · Paid: ₱{fmt(Number(b.paid_amount))}{Number(b.commission_applied) > 0 && ` · Comm: ₱${fmt(Number(b.commission_applied))}`}</p>
                     {b.notes && <p className="font-body text-xs text-muted-foreground italic">{b.notes}</p>}
                   </div>
                 );
               })}
           </div>
-          <div className="space-y-2 pt-2 border-t border-border">
+          <div className="space-y-2 pt-2 border-t border-border/50">
             <div className="grid grid-cols-2 gap-2">
               <div className="relative">
                 <Input
                   value={guestSearch || (newBooking.guest_id ? (guestMap.get(newBooking.guest_id) || '') : '')}
-                  onChange={e => {
-                    const val = e.target.value;
-                    setGuestSearch(val);
-                    setNewBooking(p => ({ ...p, guest_id: '', guest_name: val }));
-                    setShowGuestDropdown(val.length >= 1);
-                  }}
+                  onChange={e => { const val = e.target.value; setGuestSearch(val); setNewBooking(p => ({ ...p, guest_id: '', guest_name: val })); setShowGuestDropdown(val.length >= 1); }}
                   onFocus={() => { if (guestSearch.length >= 1) setShowGuestDropdown(true); }}
                   onBlur={() => setTimeout(() => setShowGuestDropdown(false), 200)}
-                  placeholder="Guest name *"
-                  className={inputCls}
+                  placeholder="Guest name *" className={inputCls}
                 />
                 {showGuestDropdown && (
                   <div className="absolute z-50 w-full mt-1 border border-border rounded-lg bg-card shadow-lg max-h-40 overflow-y-auto">
-                    {guests
-                      .filter((g: any) => g.full_name.toLowerCase().includes(guestSearch.toLowerCase()))
-                      .slice(0, 6)
-                      .map((g: any) => (
-                        <button key={g.id} type="button" onMouseDown={e => e.preventDefault()}
-                          onClick={() => {
-                            setNewBooking(p => ({ ...p, guest_id: g.id, guest_name: g.full_name }));
-                            setGuestSearch(g.full_name);
-                            setShowGuestDropdown(false);
-                          }}
-                          className="w-full px-3 py-2 text-left hover:bg-secondary transition-colors">
-                          <p className="font-body text-sm text-foreground">{g.full_name}</p>
-                        </button>
-                      ))}
+                    {guests.filter((g: any) => g.full_name.toLowerCase().includes(guestSearch.toLowerCase())).slice(0, 6).map((g: any) => (
+                      <button key={g.id} type="button" onMouseDown={e => e.preventDefault()}
+                        onClick={() => { setNewBooking(p => ({ ...p, guest_id: g.id, guest_name: g.full_name })); setGuestSearch(g.full_name); setShowGuestDropdown(false); }}
+                        className="w-full px-3 py-2 text-left hover:bg-secondary transition-colors">
+                        <p className="font-body text-sm text-foreground">{g.full_name}</p>
+                      </button>
+                    ))}
                     {guestSearch.trim() && !guests.some((g: any) => g.full_name.toLowerCase() === guestSearch.toLowerCase()) && (
                       <button type="button" onMouseDown={e => e.preventDefault()}
-                        onClick={() => {
-                          setNewBooking(p => ({ ...p, guest_id: '', guest_name: guestSearch.trim() }));
-                          setShowGuestDropdown(false);
-                        }}
+                        onClick={() => { setNewBooking(p => ({ ...p, guest_id: '', guest_name: guestSearch.trim() })); setShowGuestDropdown(false); }}
                         className="w-full px-3 py-2 text-left hover:bg-secondary transition-colors border-t border-border">
                         <p className="font-body text-xs text-accent">+ Add "{guestSearch.trim()}" as new guest</p>
                       </button>
@@ -1021,8 +921,8 @@ const ResortOpsDashboard = ({ readOnly = false }: { readOnly?: boolean }) => {
       </Card>
 
       {/* ── Occupancy Grid ── */}
-      <Card className="bg-card border-border">
-        <CardHeader className="pb-3"><CardTitle className="font-display text-sm tracking-wider">Occupancy Grid</CardTitle></CardHeader>
+      <Card className="bg-card/80 border-gold/10 hover:border-gold/20 transition-colors">
+        <CardHeader className="pb-3"><CardTitle className="font-display text-base tracking-wider">Occupancy Grid</CardTitle></CardHeader>
         <CardContent className="space-y-3">
           {occupancyData.map(({ unit, pct, unitBookings }: any) => {
             const color = pct > 90 ? 'bg-green-500' : pct >= 50 ? 'bg-amber-500' : 'bg-red-500';
@@ -1051,15 +951,14 @@ const ResortOpsDashboard = ({ readOnly = false }: { readOnly?: boolean }) => {
       </Card>
 
       {/* ── Unit Performance ── */}
-      <Card className="bg-card border-border">
-        <CardHeader className="pb-3"><CardTitle className="font-display text-sm tracking-wider">Unit Performance</CardTitle></CardHeader>
+      <Card className="bg-card/80 border-gold/10 hover:border-gold/20 transition-colors">
+        <CardHeader className="pb-3"><CardTitle className="font-display text-base tracking-wider">Unit Performance</CardTitle></CardHeader>
         <CardContent className="space-y-2">
           {unitPerformance.map(({ unit, projected, realized, variance, status }: any) => (
-            <div key={unit.id} className="p-3 rounded border border-border space-y-1">
+            <div key={unit.id} className="p-3 rounded border border-border/50 space-y-1 hover:border-gold/20 transition-colors">
               <div className="flex items-center justify-between">
                 <p className="font-body text-sm text-foreground font-medium">{unit.name}</p>
-                <Badge variant={status === 'HIGH' ? 'default' : status === 'ON_TRACK' ? 'secondary' : 'destructive'}
-                  className="font-body text-[10px]">{status}</Badge>
+                <Badge variant={status === 'HIGH' ? 'default' : status === 'ON_TRACK' ? 'secondary' : 'destructive'} className="font-body text-[10px]">{status}</Badge>
               </div>
               <div className="flex justify-between font-body text-sm">
                 <span className="text-muted-foreground">Projected: <span className="text-foreground">₱{fmt(projected)}</span></span>
@@ -1072,42 +971,32 @@ const ResortOpsDashboard = ({ readOnly = false }: { readOnly?: boolean }) => {
         </CardContent>
       </Card>
 
-      {/* ── Expenses Ledger (VAT-Compliant) ── */}
-      <Card className="bg-card border-border">
+      {/* ── Expenses Ledger ── */}
+      <Card className="bg-card/80 border-gold/10 hover:border-gold/20 transition-colors">
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
-            <CardTitle className="font-display text-sm tracking-wider">Expenses</CardTitle>
+            <CardTitle className="font-display text-base tracking-wider">Expenses</CardTitle>
             <div className="flex gap-1.5">
-              <Button size="sm" variant="outline" className="text-xs h-7" onClick={() => setExpenseReportsOpen(true)}>
-                <BarChart3 className="w-3.5 h-3.5 mr-1" /> Reports
-              </Button>
-              <Button size="sm" variant="outline" className="text-xs h-7" onClick={() => setExpenseBulkImportOpen(true)}>
-                <FileUp className="w-3.5 h-3.5 mr-1" /> Import
-              </Button>
+              <Button size="sm" variant="outline" className="text-xs h-7" onClick={() => setExpenseReportsOpen(true)}><BarChart3 className="w-3.5 h-3.5 mr-1" /> Reports</Button>
+              <Button size="sm" variant="outline" className="text-xs h-7" onClick={() => setExpenseBulkImportOpen(true)}><FileUp className="w-3.5 h-3.5 mr-1" /> Import</Button>
             </div>
           </div>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="flex flex-wrap gap-1.5">
             {(['all', 'VAT', 'Non-VAT', 'VAT-Exempt', 'missing-tin'] as const).map(f => (
-              <Button key={f} size="sm" variant={expenseVatFilter === f ? 'default' : 'outline'}
-                className="text-xs h-7 px-2.5" onClick={() => setExpenseVatFilter(f)}>
+              <Button key={f} size="sm" variant={expenseVatFilter === f ? 'default' : 'outline'} className="text-xs h-7 px-2.5" onClick={() => setExpenseVatFilter(f)}>
                 {f === 'all' ? 'All' : f === 'missing-tin' ? 'Missing TIN' : f}
               </Button>
             ))}
           </div>
-
           <Select value={expenseCategoryFilter} onValueChange={setExpenseCategoryFilter}>
-            <SelectTrigger className="bg-secondary border-border text-foreground font-body text-xs h-8 w-full">
-              <SelectValue placeholder="All Categories" />
-            </SelectTrigger>
+            <SelectTrigger className="bg-secondary border-border text-foreground font-body text-xs h-8 w-full"><SelectValue placeholder="All Categories" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Categories</SelectItem>
               {EXPENSE_CATEGORIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
             </SelectContent>
           </Select>
-
-          {/* Summary Bar */}
           {(() => {
             let filtered = monthExpenses;
             if (expenseCategoryFilter !== 'all') filtered = filtered.filter((e: any) => e.category === expenseCategoryFilter);
@@ -1115,38 +1004,30 @@ const ResortOpsDashboard = ({ readOnly = false }: { readOnly?: boolean }) => {
             else if (expenseVatFilter === 'Non-VAT') filtered = filtered.filter((e: any) => e.vat_status === 'Non-VAT');
             else if (expenseVatFilter === 'VAT-Exempt') filtered = filtered.filter((e: any) => e.vat_status === 'VAT-Exempt');
             else if (expenseVatFilter === 'missing-tin') filtered = filtered.filter((e: any) => e.vat_status === 'VAT' && !e.supplier_tin);
-
             const grandTotal = filtered.reduce((s: number, e: any) => s + Number(e.amount || 0), 0);
             const totalInputVat = filtered.reduce((s: number, e: any) => s + (e.vat_status === 'VAT' ? Number(e.vat_amount || 0) : 0), 0);
             const totalVatable = filtered.reduce((s: number, e: any) => s + (e.vat_status === 'VAT' ? Number(e.vatable_sale || 0) : 0), 0);
             const totalNonVat = filtered.reduce((s: number, e: any) => s + (e.vat_status === 'Non-VAT' ? Number(e.amount || 0) : 0), 0);
             return (
               <div className="grid grid-cols-2 gap-2">
-                <div className="p-2 rounded bg-secondary border border-border">
-                  <p className="font-body text-[10px] text-muted-foreground">Grand Total</p>
-                  <p className="font-display text-sm text-foreground">₱{fmt(grandTotal)}</p>
-                </div>
-                <div className="p-2 rounded bg-secondary border border-border">
-                  <p className="font-body text-[10px] text-muted-foreground">Input VAT</p>
-                  <p className="font-display text-sm text-foreground">₱{fmtDec(totalInputVat)}</p>
-                </div>
-                <div className="p-2 rounded bg-secondary border border-border">
-                  <p className="font-body text-[10px] text-muted-foreground">VATable Purchases</p>
-                  <p className="font-display text-sm text-foreground">₱{fmt(totalVatable)}</p>
-                </div>
-                <div className="p-2 rounded bg-secondary border border-border">
-                  <p className="font-body text-[10px] text-muted-foreground">Non-VAT</p>
-                  <p className="font-display text-sm text-foreground">₱{fmt(totalNonVat)}</p>
-                </div>
+                {[
+                  { label: 'Grand Total', value: `₱${fmt(grandTotal)}` },
+                  { label: 'Input VAT', value: `₱${fmtDec(totalInputVat)}` },
+                  { label: 'VATable Purchases', value: `₱${fmt(totalVatable)}` },
+                  { label: 'Non-VAT', value: `₱${fmt(totalNonVat)}` },
+                ].map(s => (
+                  <div key={s.label} className="p-2 rounded bg-secondary/60 border border-border/50">
+                    <p className="font-body text-[10px] text-muted-foreground">{s.label}</p>
+                    <p className="font-display text-sm text-foreground">{s.value}</p>
+                  </div>
+                ))}
               </div>
             );
           })()}
-
-          {/* Expense List - Consolidated by Category */}
-          <div className="border border-border rounded-lg overflow-x-auto">
+          <div className="border border-border/50 rounded-lg overflow-x-auto">
             <Table>
               <TableHeader>
-                <TableRow className="bg-secondary">
+                <TableRow className="bg-secondary/60">
                   <TableHead className="font-body text-xs text-muted-foreground py-2 pl-3">Category</TableHead>
                   <TableHead className="font-body text-xs text-muted-foreground py-2">Transactions</TableHead>
                   <TableHead className="font-body text-xs text-muted-foreground py-2 text-right">Total Amount</TableHead>
@@ -1160,60 +1041,25 @@ const ResortOpsDashboard = ({ readOnly = false }: { readOnly?: boolean }) => {
                   else if (expenseVatFilter === 'Non-VAT') filtered = filtered.filter((e: any) => e.vat_status === 'Non-VAT');
                   else if (expenseVatFilter === 'VAT-Exempt') filtered = filtered.filter((e: any) => e.vat_status === 'VAT-Exempt');
                   else if (expenseVatFilter === 'missing-tin') filtered = filtered.filter((e: any) => e.vat_status === 'VAT' && !e.supplier_tin);
-
-                  // Group by category
                   const categoryMap = new Map<string, { count: number; total: number }>();
-                  
                   filtered.forEach((e: any) => {
                     const category = e.category || 'Uncategorized';
                     const existing = categoryMap.get(category);
                     const amount = Number(e.amount) || 0;
-                    if (existing) {
-                      existing.count++;
-                      existing.total += amount;
-                    } else {
-                      categoryMap.set(category, { count: 1, total: amount });
-                    }
+                    if (existing) { existing.count++; existing.total += amount; }
+                    else { categoryMap.set(category, { count: 1, total: amount }); }
                   });
-
-                  const categories = Array.from(categoryMap.entries())
-                    .map(([category, data]) => ({
-                      category,
-                      count: data.count,
-                      total: data.total,
-                    }))
-                    .sort((a, b) => b.total - a.total);
-
+                  const categories = Array.from(categoryMap.entries()).map(([category, data]) => ({ category, count: data.count, total: data.total })).sort((a, b) => b.total - a.total);
                   if (categories.length === 0) {
-                    return (
-                      <TableRow>
-                        <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
-                          No expenses found for this period
-                        </TableCell>
-                      </TableRow>
-                    );
+                    return <TableRow><TableCell colSpan={4} className="text-center py-8 text-muted-foreground">No expenses found for this period</TableCell></TableRow>;
                   }
-
                   return categories.map((cat) => (
-                    <TableRow key={cat.category} className="border-border hover:bg-secondary/50">
-                      <TableCell className="font-body text-sm py-2 pl-3 font-medium">
-                        {cat.category}
-                      </TableCell>
-                      <TableCell className="font-body text-sm py-2">
-                        {cat.count} transaction{cat.count !== 1 ? 's' : ''}
-                      </TableCell>
-                      <TableCell className="font-body text-sm py-2 text-right">
-                        <span className="font-mono font-medium">₱{fmt(cat.total)}</span>
-                      </TableCell>
+                    <TableRow key={cat.category} className="border-border/50 hover:bg-secondary/50">
+                      <TableCell className="font-body text-sm py-2 pl-3 font-medium">{cat.category}</TableCell>
+                      <TableCell className="font-body text-sm py-2">{cat.count} transaction{cat.count !== 1 ? 's' : ''}</TableCell>
+                      <TableCell className="font-body text-sm py-2 text-right"><span className="font-mono font-medium">₱{fmt(cat.total)}</span></TableCell>
                       <TableCell className="py-2 text-center">
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          className="h-7 w-7 p-0"
-                          onClick={() => {
-                            toast.info(`${cat.category}: ${cat.count} items totaling ₱${fmt(cat.total)}`);
-                          }}
-                        >
+                        <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => toast.info(`${cat.category}: ${cat.count} items totaling ₱${fmt(cat.total)}`)}>
                           <Info className="w-3.5 h-3.5" />
                         </Button>
                       </TableCell>
@@ -1223,8 +1069,6 @@ const ResortOpsDashboard = ({ readOnly = false }: { readOnly?: boolean }) => {
               </TableBody>
             </Table>
           </div>
-
-          {/* Add Expense Form */}
           {showAddExpenseForm ? (
             <div className="p-3 rounded border border-border space-y-2">
               {renderExpenseFormFields(newExpense, setNewExpense)}
@@ -1238,22 +1082,12 @@ const ResortOpsDashboard = ({ readOnly = false }: { readOnly?: boolean }) => {
           )}
         </CardContent>
       </Card>
-      <ExpenseReportsModal
-        open={expenseReportsOpen}
-        onOpenChange={setExpenseReportsOpen}
-        expenses={monthExpenses}
-        monthLabel={dateFrom && dateTo ? `${format(parseISO(dateFrom), 'MMM d, yyyy')} - ${format(parseISO(dateTo), 'MMM d, yyyy')}` : ''}
-        onCategoryClick={(cat) => setExpenseCategoryFilter(cat)}
-      />
-      <ExpenseBulkImportModal
-        open={expenseBulkImportOpen}
-        onOpenChange={setExpenseBulkImportOpen}
-        onComplete={invalidateAll}
-      />
+      <ExpenseReportsModal open={expenseReportsOpen} onOpenChange={setExpenseReportsOpen} expenses={monthExpenses} monthLabel={dateFrom && dateTo ? `${format(parseISO(dateFrom), 'MMM d, yyyy')} - ${format(parseISO(dateTo), 'MMM d, yyyy')}` : ''} onCategoryClick={(cat) => setExpenseCategoryFilter(cat)} />
+      <ExpenseBulkImportModal open={expenseBulkImportOpen} onOpenChange={setExpenseBulkImportOpen} onComplete={invalidateAll} />
 
       {/* ── Tasks ── */}
-      <Card className="bg-card border-border">
-        <CardHeader className="pb-3"><CardTitle className="font-display text-sm tracking-wider">Tasks</CardTitle></CardHeader>
+      <Card className="bg-card/80 border-gold/10 hover:border-gold/20 transition-colors">
+        <CardHeader className="pb-3"><CardTitle className="font-display text-base tracking-wider">Tasks</CardTitle></CardHeader>
         <CardContent className="space-y-2">
           <div className="space-y-2">
             {monthTasks.map((t: any) => {
@@ -1270,10 +1104,8 @@ const ResortOpsDashboard = ({ readOnly = false }: { readOnly?: boolean }) => {
                     <Select value={editingTask.priority} onValueChange={v => setEditingTask((p: any) => ({...p, priority: v}))}>
                       <SelectTrigger className={inputCls}><SelectValue /></SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="low">Low</SelectItem>
-                        <SelectItem value="medium">Medium</SelectItem>
-                        <SelectItem value="high">High</SelectItem>
-                        <SelectItem value="critical">Critical</SelectItem>
+                        <SelectItem value="low">Low</SelectItem><SelectItem value="medium">Medium</SelectItem>
+                        <SelectItem value="high">High</SelectItem><SelectItem value="critical">Critical</SelectItem>
                       </SelectContent>
                     </Select>
                     <Textarea value={editingTask.description || ''} onChange={e => setEditingTask((p: any) => ({...p, description: e.target.value}))} placeholder="Description" className="bg-secondary border-border text-foreground font-body text-sm min-h-[60px]" />
@@ -1282,16 +1114,14 @@ const ResortOpsDashboard = ({ readOnly = false }: { readOnly?: boolean }) => {
                 );
               }
               return (
-                <div key={t.id} className={`flex items-center justify-between py-2 px-2 border-b border-border ${isCritical ? 'border-l-2 border-l-red-500' : ''}`}>
+                <div key={t.id} className={`flex items-center justify-between py-2 px-2 border-b border-border/50 ${isCritical ? 'border-l-2 border-l-red-500' : ''}`}>
                   <div className="flex items-center gap-2 flex-1 min-w-0">
                     <Button size="icon" variant="ghost" className="h-6 w-6 flex-shrink-0" onClick={() => toggleTaskStatus(t.id, t.status)}>
                       {t.status === 'done' ? <Check className="w-3.5 h-3.5 text-green-400" /> : <div className={`w-3 h-3 rounded-full border ${t.status === 'in_progress' ? 'border-amber-400 bg-amber-400/20' : 'border-muted-foreground'}`} />}
                     </Button>
                     <div className="flex-1 min-w-0">
                       <p className={`font-body text-sm ${t.status === 'done' ? 'text-muted-foreground line-through' : 'text-foreground'}`}>{t.title}</p>
-                      <p className="font-body text-xs text-muted-foreground">{t.category} · {t.due_date}
-                        {overdue && <span className="text-red-400 ml-1">OVERDUE</span>}
-                      </p>
+                      <p className="font-body text-xs text-muted-foreground">{t.category} · {t.due_date}{overdue && <span className="text-red-400 ml-1">OVERDUE</span>}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-1">
@@ -1303,7 +1133,7 @@ const ResortOpsDashboard = ({ readOnly = false }: { readOnly?: boolean }) => {
               );
             })}
           </div>
-          <div className="space-y-2 pt-2 border-t border-border">
+          <div className="space-y-2 pt-2 border-t border-border/50">
             <Input placeholder="Task title" value={newTask.title} onChange={e => setNewTask(p => ({...p, title: e.target.value}))} className={inputCls} />
             <div className="grid grid-cols-2 gap-2">
               <Input placeholder="Category" value={newTask.category} onChange={e => setNewTask(p => ({...p, category: e.target.value}))} className={inputCls} />
@@ -1312,10 +1142,8 @@ const ResortOpsDashboard = ({ readOnly = false }: { readOnly?: boolean }) => {
             <Select value={newTask.priority} onValueChange={v => setNewTask(p => ({...p, priority: v}))}>
               <SelectTrigger className={inputCls}><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="low">Low</SelectItem>
-                <SelectItem value="medium">Medium</SelectItem>
-                <SelectItem value="high">High</SelectItem>
-                <SelectItem value="critical">Critical</SelectItem>
+                <SelectItem value="low">Low</SelectItem><SelectItem value="medium">Medium</SelectItem>
+                <SelectItem value="high">High</SelectItem><SelectItem value="critical">Critical</SelectItem>
               </SelectContent>
             </Select>
             <Button size="sm" onClick={addTask} className="w-full"><Plus className="w-4 h-4 mr-1" /> Add Task</Button>
@@ -1324,8 +1152,8 @@ const ResortOpsDashboard = ({ readOnly = false }: { readOnly?: boolean }) => {
       </Card>
 
       {/* ── Assets ── */}
-      <Card className="bg-card border-border">
-        <CardHeader className="pb-3"><CardTitle className="font-display text-sm tracking-wider">Assets & Accounts</CardTitle></CardHeader>
+      <Card className="bg-card/80 border-gold/10 hover:border-gold/20 transition-colors">
+        <CardHeader className="pb-3"><CardTitle className="font-display text-base tracking-wider">Assets & Accounts</CardTitle></CardHeader>
         <CardContent className="space-y-2">
           <div className="space-y-2">
             {assets.map((a: any) =>
@@ -1337,7 +1165,7 @@ const ResortOpsDashboard = ({ readOnly = false }: { readOnly?: boolean }) => {
                   <SaveCancelBtns onSave={saveAsset} onCancel={() => setEditingAsset(null)} />
                 </div>
               ) : (
-                <div key={a.id} className="flex items-center justify-between py-2 px-2 border-b border-border">
+                <div key={a.id} className="flex items-center justify-between py-2 px-2 border-b border-border/50">
                   <div className="flex-1">
                     <p className="font-body text-sm text-foreground">{a.name} <span className="text-muted-foreground text-xs">({a.type})</span></p>
                   </div>
@@ -1360,8 +1188,8 @@ const ResortOpsDashboard = ({ readOnly = false }: { readOnly?: boolean }) => {
       </Card>
 
       {/* ── Incoming Payments ── */}
-      <Card className="bg-card border-border">
-        <CardHeader className="pb-3"><CardTitle className="font-display text-sm tracking-wider">Incoming Payments</CardTitle></CardHeader>
+      <Card className="bg-card/80 border-gold/10 hover:border-gold/20 transition-colors">
+        <CardHeader className="pb-3"><CardTitle className="font-display text-base tracking-wider">Incoming Payments</CardTitle></CardHeader>
         <CardContent className="space-y-2">
           <div className="space-y-2">
             {monthPayments.map((p: any) =>
@@ -1373,7 +1201,7 @@ const ResortOpsDashboard = ({ readOnly = false }: { readOnly?: boolean }) => {
                   <SaveCancelBtns onSave={savePayment} onCancel={() => setEditingPayment(null)} />
                 </div>
               ) : (
-                <div key={p.id} className="flex items-center justify-between py-2 px-2 border-b border-border">
+                <div key={p.id} className="flex items-center justify-between py-2 px-2 border-b border-border/50">
                   <div className="flex-1">
                     <p className="font-body text-sm text-foreground">{p.source}</p>
                     <p className="font-body text-xs text-muted-foreground">{p.expected_date}</p>
