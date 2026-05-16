@@ -19,7 +19,7 @@ function getSystemTheme(): 'light' | 'dark' {
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setThemeState] = useState<Theme>(() => {
     const stored = localStorage.getItem(STORAGE_KEY) as Theme | null;
-    return stored && ['system', 'light', 'dark'].includes(stored) ? stored : 'system';
+    return stored && ['system', 'light', 'dark'].includes(stored) ? stored : 'dark';
   });
 
   const [resolvedTheme, setResolved] = useState<'light' | 'dark'>(() =>
@@ -38,12 +38,10 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     applyTheme(t);
   };
 
-  // Apply on mount
   useEffect(() => {
     applyTheme(theme);
   }, []);
 
-  // Listen to OS preference changes when in system mode
   useEffect(() => {
     const mq = window.matchMedia('(prefers-color-scheme: dark)');
     const handler = () => {
