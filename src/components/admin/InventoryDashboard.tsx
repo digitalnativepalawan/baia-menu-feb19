@@ -4,11 +4,11 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, AlertTriangle, Download, Package, BarChart3, Calendar, ArrowRightLeft, Zap, ChevronRight, UtensilsCrossed } from 'lucide-react';
+import { Plus, AlertTriangle, Download, Package, BarChart3, Calendar, ArrowRightLeft, Zap, ChevronRight, UtensilsCrossed, Camera, Trash2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
-import { format, subDays, differenceInDays } from 'date-fns';
+import { format, subDays, differenceInDays, addDays } from 'date-fns';
 import { Label } from '@/components/ui/label';
 
 const UNITS = ['grams', 'ml', 'pcs', 'kg', 'liters', 'bottles', 'cans', 'slices'];
@@ -452,7 +452,9 @@ const InventoryDashboard = ({ readOnly = false }: { readOnly?: boolean }) => {
               <p className={`font-display text-lg leading-none ${outOfStockCount > 0 ? 'text-red-400' : 'text-foreground'}`}>
                 {outOfStockCount}
               </p>
-              <p className="font-body text-[9px] text-muted-foreground mt-1">items</p>
+              <p className="font-body text-[9px] text-muted-foreground mt-1">
+                {outOfStockCount === 0 ? 'No items' : 'items'}
+              </p>
             </button>
 
             <button
@@ -461,11 +463,13 @@ const InventoryDashboard = ({ readOnly = false }: { readOnly?: boolean }) => {
                 urgentItems.length > 0 ? 'border-amber-500/40 bg-amber-500/10' : 'border-border/60 bg-card/50'
               }`}
             >
-              <p className="font-body text-[10px] tracking-[0.2em] uppercase text-muted-foreground mb-1">Attention</p>
+              <p className="font-body text-[10px] tracking-[0.2em] uppercase text-muted-foreground mb-1">Needs Attention</p>
               <p className={`font-display text-lg leading-none ${urgentItems.length > 0 ? 'text-amber-400' : 'text-foreground'}`}>
                 {urgentItems.length}
               </p>
-              <p className="font-body text-[9px] text-muted-foreground mt-1">need reorder</p>
+              <p className="font-body text-[9px] text-muted-foreground mt-1">
+                {urgentItems.length === 0 ? 'No items' : 'need reorder'}
+              </p>
             </button>
           </div>
 
@@ -631,12 +635,12 @@ const InventoryDashboard = ({ readOnly = false }: { readOnly?: boolean }) => {
                 <button key={ing.id} onClick={() => openEdit(ing)}
                   className="w-full text-left rounded-2xl border border-border/50 bg-card/40 p-3 hover:border-gold/40 hover:bg-card/60 transition-all backdrop-blur-sm">
                   <div className="flex items-center gap-3">
-                    <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${gradient} flex items-center justify-center shrink-0`}>
+                    <div className={`w-12 h-12 rounded-full bg-gradient-to-br ${gradient} flex items-center justify-center shrink-0 shadow-sm`}>
                       <span className="font-body text-xs text-white font-bold">{getInitials(ing.name)}</span>
                     </div>
 
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-0.5">
+                      <div className="flex items-center justify-between gap-2 mb-0.5">
                         <p className="font-body text-sm text-foreground truncate">{ing.name}</p>
                         <span className={`flex items-center gap-1 text-[10px] font-body shrink-0 ${healthColor}`}>
                           <span className={`w-1.5 h-1.5 rounded-full ${healthDot}`} />
@@ -644,37 +648,29 @@ const InventoryDashboard = ({ readOnly = false }: { readOnly?: boolean }) => {
                         </span>
                       </div>
 
-                      <div className="flex items-center gap-1.5 mb-1.5">
-                        {selectedDept === 'all' && (
-                          <span className="font-body text-[10px] px-1.5 py-0.5 rounded-md border border-border/50 text-muted-foreground">
-                            {DEPT_ICONS[dept]} {DEPT_LABELS[dept]}
-                          </span>
-                        )}
+                      <div className="flex items-center gap-1 mb-1.5">
+                        <span className="font-body text-[10px] text-muted-foreground">
+                          {DEPT_ICONS[dept]} {DEPT_LABELS[dept]}
+                        </span>
                         {dishCount > 0 && (
                           <span className="font-body text-[10px] text-muted-foreground">
-                            {dishCount} {dishCount === 1 ? 'dish' : 'dishes'}
-                          </span>
-                        )}
-                        {daysLabel && (
-                          <span className={`font-body text-[10px] ${
-                            urgency.level === 'critical' ? 'text-red-400'
-                            : urgency.level === 'warning' ? 'text-amber-400'
-                            : 'text-muted-foreground'
-                          }`}>
-                            · {daysLabel} left
+                            · {dishCount} {dishCount === 1 ? 'dish' : 'dishes'}
                           </span>
                         )}
                       </div>
 
-                      <div className="w-full h-1 rounded-full bg-secondary/70 overflow-hidden">
-                        <div className={`h-full rounded-full transition-all ${barColor}`} style={{ width: `${stockPct}%` }} />
+                      <div className="flex items-center gap-2">
+                        <div className="flex-1 h-1 rounded-full bg-secondary/70 overflow-hidden">
+                          <div className={`h-full rounded-full transition-all ${barColor}`} style={{ width: `${stockPct}%` }} />
+                        </div>
+                        <span className="font-body text-[10px] text-muted-foreground shrink-0">{stockPct}%</span>
                       </div>
                     </div>
 
                     <div className="text-right shrink-0 flex items-center gap-1.5">
                       <div>
                         <p className="font-body text-sm text-foreground">
-                          {ing.current_stock} <span className="text-[10px] text-muted-foreground">{ing.unit}</span>
+                          {ing.current_stock.toLocaleString()} <span className="text-[10px] text-muted-foreground">{ing.unit}</span>
                         </p>
                         <p className="font-body text-[10px] text-muted-foreground">
                           {ing.cost_per_unit > 0 ? `₱${ing.cost_per_unit}/${ing.unit}` : '₱—'}
@@ -747,158 +743,203 @@ const InventoryDashboard = ({ readOnly = false }: { readOnly?: boolean }) => {
 
       {/* Edit / New Ingredient Dialog */}
       <Dialog open={!!editIng} onOpenChange={() => setEditIng(null)}>
-        <DialogContent className="bg-card border-border/60 max-w-sm max-h-[88vh] overflow-y-auto p-0">
-          {/* Gradient header */}
-          <div className={`relative p-5 pb-4 bg-gradient-to-br ${
-            form.department ? (DEPT_GRADIENT[form.department] || 'from-slate-600 to-slate-800') : 'from-slate-600 to-slate-800'
-          } rounded-t-xl`}>
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex-1 min-w-0">
-                <p className="font-body text-[10px] tracking-[0.3em] uppercase text-white/60 mb-0.5">
-                  {editIng === 'new' ? 'New Ingredient' : 'Edit Ingredient'}
-                </p>
-                <p className="font-display text-lg text-white truncate">{form.name || 'Unnamed'}</p>
-              </div>
-              <div className="w-12 h-12 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center border border-white/30 shrink-0">
-                <span className="font-body text-sm text-white font-bold">
+        <DialogContent className="bg-card border-border/60 max-w-sm max-h-[88vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="font-body text-sm tracking-[0.2em] uppercase text-foreground text-center">
+              {editIng === 'new' ? 'Add Ingredient' : 'Edit Ingredient'}
+            </DialogTitle>
+          </DialogHeader>
+
+          {/* Circular avatar with camera */}
+          <div className="flex justify-center pb-2">
+            <div className="relative">
+              <div className={`w-24 h-24 rounded-full bg-gradient-to-br ${
+                DEPT_GRADIENT[form.department] || DEPT_GRADIENT.kitchen
+              } flex items-center justify-center border-4 border-card shadow-lg`}>
+                <span className="font-body text-xl text-white font-bold">
                   {form.name ? getInitials(form.name) : '?'}
                 </span>
+              </div>
+              <div className="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-card border border-border/60 flex items-center justify-center shadow-sm">
+                <Camera className="w-3.5 h-3.5 text-muted-foreground" />
               </div>
             </div>
           </div>
 
-          <div className="p-4 space-y-4">
-            {/* Name */}
+          <div className="space-y-4">
+            {/* Basic Information section */}
             <div>
-              <label className="font-body text-[10px] tracking-[0.2em] uppercase text-muted-foreground">Name</label>
-              <Input
-                value={form.name}
-                onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-                placeholder="Ingredient name"
-                className="bg-secondary/50 border-border/60 text-foreground font-body rounded-xl mt-1"
-              />
-            </div>
-
-            {/* Department */}
-            <div>
-              <label className="font-body text-[10px] tracking-[0.2em] uppercase text-muted-foreground mb-2 block">Department</label>
-              <div className="flex flex-wrap gap-1.5">
-                {DEPARTMENTS.map(dept => (
-                  <button
-                    key={dept}
-                    type="button"
-                    onClick={() => setForm(f => ({ ...f, department: dept }))}
-                    className={`px-2.5 py-1.5 rounded-lg font-body text-xs border transition-all flex items-center gap-1 ${
-                      form.department === dept
-                        ? 'bg-gradient-gold text-background border-gold/60 shadow-[0_0_8px_-2px_hsl(var(--gold)/0.4)]'
-                        : 'bg-secondary/50 text-foreground border-border/50 hover:border-gold/30'
-                    }`}
-                  >
-                    {DEPT_ICONS[dept]} {DEPT_LABELS[dept]}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Unit */}
-            <div>
-              <label className="font-body text-[10px] tracking-[0.2em] uppercase text-muted-foreground mb-1 block">Unit</label>
-              <Select value={form.unit} onValueChange={v => setForm(f => ({ ...f, unit: v }))}>
-                <SelectTrigger className="bg-secondary/50 border-border/60 text-foreground font-body rounded-xl">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="bg-card border-border">
-                  {UNITS.map(u => (
-                    <SelectItem key={u} value={u} className="font-body text-foreground">{u}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Cost */}
-            <div>
-              <label className="font-body text-[10px] tracking-[0.2em] uppercase text-muted-foreground">Cost per Unit (₱)</label>
-              <Input
-                value={form.cost_per_unit}
-                onChange={e => setForm(f => ({ ...f, cost_per_unit: e.target.value }))}
-                type="number"
-                className="bg-secondary/50 border-border/60 text-foreground font-body rounded-xl mt-1"
-              />
-            </div>
-
-            {/* Stock + Threshold */}
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="font-body text-[10px] tracking-[0.2em] uppercase text-muted-foreground">Current Stock</label>
-                <Input
-                  value={form.current_stock}
-                  onChange={e => setForm(f => ({ ...f, current_stock: e.target.value }))}
-                  type="number"
-                  className="bg-secondary/50 border-border/60 text-foreground font-body rounded-xl mt-1"
-                />
-              </div>
-              <div>
-                <label className="font-body text-[10px] tracking-[0.2em] uppercase text-muted-foreground">Low Threshold</label>
-                <Input
-                  value={form.low_stock_threshold}
-                  onChange={e => setForm(f => ({ ...f, low_stock_threshold: e.target.value }))}
-                  type="number"
-                  className="bg-secondary/50 border-border/60 text-foreground font-body rounded-xl mt-1"
-                />
-              </div>
-            </div>
-
-            {/* Inventory insights */}
-            {editIng && editIng !== 'new' && burnMap[editIng.id] && (
-              <div className="rounded-2xl border border-border/60 bg-secondary/30 p-3">
-                <div className="flex items-center gap-2 mb-3">
-                  <div className="w-5 h-5 rounded-md bg-gold/15 flex items-center justify-center">
-                    <BarChart3 className="w-3 h-3 text-gold" />
-                  </div>
-                  <span className="font-body text-[10px] tracking-[0.2em] uppercase text-muted-foreground">Inventory Insights</span>
+              <p className="font-body text-[10px] tracking-[0.25em] uppercase text-muted-foreground mb-3">Basic Information</p>
+              <div className="space-y-3">
+                <div>
+                  <label className="font-body text-[10px] text-muted-foreground">Ingredient Name</label>
+                  <Input
+                    value={form.name}
+                    onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+                    placeholder="Ingredient name"
+                    className="bg-secondary/50 border-border/60 text-foreground font-body rounded-xl mt-1"
+                  />
                 </div>
-                <div className="grid grid-cols-3 gap-2">
-                  <div className="text-center p-2 rounded-xl bg-card/50">
-                    <p className="font-display text-base text-foreground">{burnMap[editIng.id].dailyRate.toFixed(1)}</p>
-                    <p className="font-body text-[9px] text-muted-foreground">{editIng.unit}/day</p>
-                  </div>
-                  <div className="text-center p-2 rounded-xl bg-card/50">
-                    <p className="font-display text-base text-foreground">
-                      {burnMap[editIng.id].daysRemaining !== null ? formatDays(burnMap[editIng.id].daysRemaining) : '—'}
-                    </p>
-                    <p className="font-body text-[9px] text-muted-foreground">remaining</p>
-                  </div>
-                  <div className="text-center p-2 rounded-xl bg-card/50">
-                    <p className="font-display text-base text-foreground">{burnMap[editIng.id].suggestedThreshold}</p>
-                    <p className="font-body text-[9px] text-muted-foreground">suggested min</p>
-                  </div>
-                </div>
-              </div>
-            )}
 
-            {/* Used in dishes */}
-            {editIngUsage.length > 0 && (
-              <div className="rounded-2xl border border-border/60 bg-secondary/30 p-3">
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="w-5 h-5 rounded-md bg-gold/15 flex items-center justify-center">
-                    <UtensilsCrossed className="w-3 h-3 text-gold" />
-                  </div>
-                  <span className="font-body text-[10px] tracking-[0.2em] uppercase text-muted-foreground">
-                    Used in {editIngUsage.length} {editIngUsage.length === 1 ? 'dish' : 'dishes'}
-                  </span>
-                </div>
-                <div className="space-y-1.5">
-                  {editIngUsage
-                    .sort((a, b) => a.dishName.localeCompare(b.dishName))
-                    .map((u, idx) => (
-                      <div key={idx} className="flex justify-between items-center">
-                        <span className="font-body text-xs text-foreground/80">{u.dishName}</span>
-                        <span className="font-body text-[10px] text-muted-foreground">{u.quantity} per order</span>
-                      </div>
+                {/* Department */}
+                <div>
+                  <label className="font-body text-[10px] text-muted-foreground mb-2 block">Department</label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {DEPARTMENTS.map(dept => (
+                      <button
+                        key={dept}
+                        type="button"
+                        onClick={() => setForm(f => ({ ...f, department: dept }))}
+                        className={`px-2.5 py-1.5 rounded-lg font-body text-xs border transition-all flex items-center gap-1 ${
+                          form.department === dept
+                            ? 'bg-gradient-gold text-background border-gold/60 shadow-[0_0_8px_-2px_hsl(var(--gold)/0.4)]'
+                            : 'bg-secondary/50 text-foreground border-border/50 hover:border-gold/30'
+                        }`}
+                      >
+                        {DEPT_ICONS[dept]} {DEPT_LABELS[dept]}
+                      </button>
                     ))}
+                  </div>
+                </div>
+
+                {/* Unit + Cost side-by-side */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="font-body text-[10px] text-muted-foreground mb-1 block">Unit</label>
+                    <Select value={form.unit} onValueChange={v => setForm(f => ({ ...f, unit: v }))}>
+                      <SelectTrigger className="bg-secondary/50 border-border/60 text-foreground font-body rounded-xl">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="bg-card border-border">
+                        {UNITS.map(u => (
+                          <SelectItem key={u} value={u} className="font-body text-foreground">{u}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <label className="font-body text-[10px] text-muted-foreground">Cost per unit (₱)</label>
+                    <Input
+                      value={form.cost_per_unit}
+                      onChange={e => setForm(f => ({ ...f, cost_per_unit: e.target.value }))}
+                      type="number"
+                      className="bg-secondary/50 border-border/60 text-foreground font-body rounded-xl mt-1"
+                    />
+                  </div>
+                </div>
+
+                {/* Stock + Threshold */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="font-body text-[10px] text-muted-foreground">Current Stock</label>
+                    <Input
+                      value={form.current_stock}
+                      onChange={e => setForm(f => ({ ...f, current_stock: e.target.value }))}
+                      type="number"
+                      className="bg-secondary/50 border-border/60 text-foreground font-body rounded-xl mt-1"
+                    />
+                  </div>
+                  <div>
+                    <label className="font-body text-[10px] text-muted-foreground">Low Stock Threshold</label>
+                    <Input
+                      value={form.low_stock_threshold}
+                      onChange={e => setForm(f => ({ ...f, low_stock_threshold: e.target.value }))}
+                      type="number"
+                      className="bg-secondary/50 border-border/60 text-foreground font-body rounded-xl mt-1"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Usage & Performance section */}
+            {editIngUsage.length > 0 && (
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <p className="font-body text-[10px] tracking-[0.25em] uppercase text-muted-foreground">Usage &amp; Performance</p>
+                </div>
+                <div className="rounded-2xl border border-border/60 bg-secondary/30 p-3">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <UtensilsCrossed className="w-3.5 h-3.5 text-gold/70" />
+                      <span className="font-body text-xs text-foreground">
+                        Used in {editIngUsage.length} {editIngUsage.length === 1 ? 'dish' : 'dishes'}
+                      </span>
+                    </div>
+                    <button className="font-body text-[10px] text-gold hover:text-gold/80 transition-colors">View All</button>
+                  </div>
+                  <div className="space-y-2">
+                    {editIngUsage
+                      .sort((a, b) => a.dishName.localeCompare(b.dishName))
+                      .map((u, idx) => (
+                        <div key={idx} className="flex items-center gap-2.5">
+                          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-slate-600 to-slate-800 flex items-center justify-center shrink-0">
+                            <span className="font-body text-[9px] text-white font-bold">
+                              {u.dishName.split(' ').slice(0, 2).map((w: string) => w[0]).join('').toUpperCase()}
+                            </span>
+                          </div>
+                          <span className="font-body text-xs text-foreground flex-1 truncate">{u.dishName}</span>
+                          <span className="font-body text-[10px] text-muted-foreground shrink-0">
+                            {u.quantity} {editIng?.unit || ''} per order
+                          </span>
+                        </div>
+                      ))}
+                  </div>
                 </div>
               </div>
             )}
+
+            {/* Inventory Insights */}
+            {editIng && editIng !== 'new' && burnMap[editIng.id] && (() => {
+              const burn = burnMap[editIng.id];
+              const depletionDate = burn.daysRemaining !== null
+                ? addDays(new Date(), Math.round(burn.daysRemaining))
+                : null;
+              const reorderDate = burn.reorderQty > 0
+                ? addDays(new Date(), Math.max(0, Math.round((burn.daysRemaining ?? 0) - 3)))
+                : null;
+              const avgDailyDisplay = burn.dailyRate >= 1000
+                ? `${(burn.dailyRate / 1000).toFixed(1)} k${editIng.unit}`
+                : `${Math.round(burn.dailyRate)} ${editIng.unit}`;
+              const reorderDisplay = burn.reorderQty >= 1000
+                ? `${(burn.reorderQty / 1000).toFixed(1)} k${editIng.unit}`
+                : `${burn.reorderQty} ${editIng.unit}`;
+              return (
+                <div>
+                  <p className="font-body text-[10px] tracking-[0.25em] uppercase text-muted-foreground mb-3">Inventory Insights</p>
+                  <div className="rounded-2xl border border-border/60 bg-secondary/30 p-3">
+                    <div className="grid grid-cols-3 gap-2 text-center">
+                      <div className="p-2 rounded-xl bg-card/50">
+                        <p className="font-body text-[9px] text-muted-foreground mb-1">Est. Depletion</p>
+                        <p className="font-display text-sm text-foreground leading-tight">
+                          {burn.daysRemaining !== null ? formatDays(burn.daysRemaining) : '—'}
+                        </p>
+                        {depletionDate && (
+                          <p className="font-body text-[9px] text-muted-foreground mt-0.5">
+                            {format(depletionDate, 'MMM d, yyyy')}
+                          </p>
+                        )}
+                      </div>
+                      <div className="p-2 rounded-xl bg-card/50">
+                        <p className="font-body text-[9px] text-muted-foreground mb-1">Avg. Daily Use</p>
+                        <p className="font-display text-sm text-foreground leading-tight">{avgDailyDisplay}</p>
+                      </div>
+                      <div className="p-2 rounded-xl bg-card/50">
+                        <p className="font-body text-[9px] text-muted-foreground mb-1">Suggested Reorder</p>
+                        <p className="font-display text-sm text-foreground leading-tight">
+                          {burn.reorderQty > 0 ? reorderDisplay : '—'}
+                        </p>
+                        {reorderDate && burn.reorderQty > 0 && (
+                          <p className="font-body text-[9px] text-muted-foreground mt-0.5">
+                            By {format(reorderDate, 'MMM d')}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
 
             {/* Actions */}
             <div className="space-y-2 pt-1">
@@ -910,8 +951,8 @@ const InventoryDashboard = ({ readOnly = false }: { readOnly?: boolean }) => {
               {editIng && editIng !== 'new' && (
                 <button
                   onClick={() => deleteIng(editIng.id)}
-                  className="w-full py-2.5 rounded-xl border border-red-500/40 bg-red-500/10 text-red-400 font-body text-sm tracking-wider hover:bg-red-500/15 transition-colors">
-                  Delete Ingredient
+                  className="w-full py-2.5 rounded-xl border border-red-500/40 bg-red-500/10 text-red-400 font-body text-sm tracking-wider hover:bg-red-500/15 transition-colors flex items-center justify-center gap-2">
+                  <Trash2 className="w-3.5 h-3.5" /> Delete Ingredient
                 </button>
               )}
             </div>
