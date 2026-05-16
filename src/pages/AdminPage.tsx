@@ -348,7 +348,6 @@ const AdminPage = () => {
 
   const deleteAllOrders = async () => {
     try {
-      // Delete in FK order: room_transactions → inventory_logs → orders → tabs
       await supabase.from('room_transactions' as any).delete().gte('created_at', '1970-01-01');
       await supabase.from('inventory_logs').delete().gte('created_at', '1970-01-01');
       const { error: ordErr } = await supabase.from('orders').delete().gte('created_at', '1970-01-01');
@@ -423,7 +422,6 @@ const AdminPage = () => {
   };
 
   const deleteOrder = async (orderId: string) => {
-    // Delete dependent records first to avoid FK constraint errors
     await supabase.from('room_transactions').delete().eq('order_id', orderId);
     await supabase.from('inventory_logs').delete().eq('order_id', orderId);
     const { error } = await supabase.from('orders').delete().eq('id', orderId);
@@ -494,12 +492,14 @@ const AdminPage = () => {
 
   // ── Section header helper ──────────────────────────────────────
   const SectionLabel = ({ label }: { label: string }) => (
-    <p className="font-display text-[10px] tracking-widest text-muted-foreground uppercase pt-1">{label}</p>
+    <div className="flex items-center gap-2 mb-2">
+      <span className="w-4 h-px bg-gold/50 shrink-0" />
+      <p className="font-body text-[9px] tracking-[0.35em] text-gold/60 uppercase">{label}</p>
+    </div>
   );
 
   return (
     <LuxuryShell>
-      {/* Global navigation bar */}
       <StaffNavBar />
 
       <div className="max-w-2xl mx-auto px-4 pb-6">
@@ -512,14 +512,14 @@ const AdminPage = () => {
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           {/* ── Grouped tab triggers ─────────────────────────── */}
-          <div className="space-y-2 mb-6">
+          <div className="space-y-3 mb-6">
             {opsTabs.length > 0 && (
-              <div>
+              <div className="rounded-xl border border-border/30 bg-card/20 backdrop-blur-sm p-3">
                 <SectionLabel label="Operations" />
-                <TabsList className="flex flex-wrap gap-1 mt-1 h-auto bg-transparent p-0">
+                <TabsList className="flex flex-wrap gap-1 h-auto bg-transparent p-0">
                   {opsTabs.map(t => (
                     <TabsTrigger key={t.value} value={t.value}
-                      className={`font-display text-xs tracking-wider min-h-[44px] px-3 py-1.5 rounded-md border border-border/60 bg-card/40 backdrop-blur-sm text-muted-foreground data-[state=active]:bg-gradient-gold data-[state=active]:text-background data-[state=active]:border-gold/60 data-[state=active]:luxury-glow-gold ${
+                      className={`font-display text-xs tracking-wider min-h-[36px] px-3 py-1 rounded-lg border border-border/50 bg-background/30 text-muted-foreground data-[state=active]:bg-gradient-gold data-[state=active]:text-background data-[state=active]:border-gold/60 data-[state=active]:shadow-[0_0_18px_-4px_hsl(var(--gold)/0.5)] transition-all duration-150 ${
                         ALERT_KEY_MAP[t.value] && alerts[ALERT_KEY_MAP[t.value] as keyof typeof alerts] && activeTab !== t.value ? 'tab-pulse' : ''
                       }`}>
                       {t.label}
@@ -529,12 +529,12 @@ const AdminPage = () => {
               </div>
             )}
             {peopleTabs.length > 0 && (
-              <div>
+              <div className="rounded-xl border border-border/30 bg-card/20 backdrop-blur-sm p-3">
                 <SectionLabel label="People" />
-                <TabsList className="flex flex-wrap gap-1 mt-1 h-auto bg-transparent p-0">
+                <TabsList className="flex flex-wrap gap-1 h-auto bg-transparent p-0">
                   {peopleTabs.map(t => (
                     <TabsTrigger key={t.value} value={t.value}
-                      className="font-display text-xs tracking-wider min-h-[44px] px-3 py-1.5 rounded-md border border-border/60 bg-card/40 backdrop-blur-sm text-muted-foreground data-[state=active]:bg-gradient-gold data-[state=active]:text-background data-[state=active]:border-gold/60 data-[state=active]:luxury-glow-gold">
+                      className="font-display text-xs tracking-wider min-h-[36px] px-3 py-1 rounded-lg border border-border/50 bg-background/30 text-muted-foreground data-[state=active]:bg-gradient-gold data-[state=active]:text-background data-[state=active]:border-gold/60 data-[state=active]:shadow-[0_0_18px_-4px_hsl(var(--gold)/0.5)] transition-all duration-150">
                       {t.label}
                     </TabsTrigger>
                   ))}
@@ -542,12 +542,12 @@ const AdminPage = () => {
               </div>
             )}
             {cfgTabs.length > 0 && (
-              <div>
-                <SectionLabel label="Config" />
-                <TabsList className="flex flex-wrap gap-1 mt-1 h-auto bg-transparent p-0">
+              <div className="rounded-xl border border-border/30 bg-card/20 backdrop-blur-sm p-3">
+                <SectionLabel label="Configuration" />
+                <TabsList className="flex flex-wrap gap-1 h-auto bg-transparent p-0">
                   {cfgTabs.map(t => (
                     <TabsTrigger key={t.value} value={t.value}
-                      className="font-display text-xs tracking-wider min-h-[44px] px-3 py-1.5 rounded-md border border-border/60 bg-card/40 backdrop-blur-sm text-muted-foreground data-[state=active]:bg-gradient-gold data-[state=active]:text-background data-[state=active]:border-gold/60 data-[state=active]:luxury-glow-gold">
+                      className="font-display text-xs tracking-wider min-h-[36px] px-3 py-1 rounded-lg border border-border/50 bg-background/30 text-muted-foreground data-[state=active]:bg-gradient-gold data-[state=active]:text-background data-[state=active]:border-gold/60 data-[state=active]:shadow-[0_0_18px_-4px_hsl(var(--gold)/0.5)] transition-all duration-150">
                       {t.label}
                     </TabsTrigger>
                   ))}
