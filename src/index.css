@@ -39,7 +39,7 @@
     --input: 220 10% 85%;
     --ring: 220 30% 50%;
 
-    --radius: 0.25rem;
+    --radius: 0.75rem;
 
     --sidebar-background: 220 12% 96%;
     --sidebar-foreground: 220 20% 15%;
@@ -65,66 +65,71 @@
     --shadow-glow-gold: 0 0 40px -8px hsl(38 60% 50% / 0.35);
     --glass-bg: 220 15% 97% / 0.65;
     --glass-border: 220 15% 80% / 0.5;
+    --gold-border: rgba(212, 178, 122, 0.15);
+    --gold-border-hover: rgba(212, 178, 122, 0.30);
   }
 
   /* ── Dark mode ── */
   .dark {
-    --background: 220 40% 7%;
-    --foreground: 40 30% 92%;
+    /* Deep luxury navy — matches the Claude Design export (#04091A) */
+    --background: 226 73% 6%;
+    --foreground: 38 35% 92%;
 
-    --card: 220 32% 11%;
-    --card-foreground: 40 30% 92%;
+    --card: 225 55% 9%;
+    --card-foreground: 38 35% 92%;
 
-    --popover: 220 35% 9%;
-    --popover-foreground: 40 30% 92%;
+    --popover: 226 65% 7%;
+    --popover-foreground: 38 35% 92%;
 
-    --primary: 38 55% 70%;
-    --primary-foreground: 220 40% 8%;
+    --primary: 38 52% 65%;
+    --primary-foreground: 226 70% 6%;
 
-    --secondary: 220 25% 17%;
-    --secondary-foreground: 40 30% 92%;
+    --secondary: 225 35% 14%;
+    --secondary-foreground: 38 30% 88%;
 
-    --muted: 220 22% 15%;
-    --muted-foreground: 40 15% 65%;
+    --muted: 225 30% 12%;
+    --muted-foreground: 38 15% 60%;
 
-    --accent: 38 55% 65%;
-    --accent-foreground: 220 40% 8%;
+    --accent: 38 52% 65%;
+    --accent-foreground: 226 70% 6%;
 
     --destructive: 0 62.8% 50%;
     --warning: 38 92% 55%;
-    --warning-foreground: 220 40% 8%;
+    --warning-foreground: 226 70% 6%;
     --success: 158 50% 45%;
-    --success-foreground: 220 40% 8%;
-    --destructive-foreground: 40 30% 95%;
+    --success-foreground: 226 70% 6%;
+    --destructive-foreground: 38 30% 95%;
 
-    --border: 220 20% 20%;
-    --input: 220 20% 20%;
-    --ring: 38 55% 65%;
+    --border: 225 25% 16%;
+    --input: 225 25% 16%;
+    --ring: 38 52% 65%;
 
-    --sidebar-background: 220 30% 10%;
-    --sidebar-foreground: 40 30% 88%;
-    --sidebar-primary: 40 30% 82%;
-    --sidebar-primary-foreground: 220 30% 12%;
-    --sidebar-accent: 220 20% 18%;
-    --sidebar-accent-foreground: 40 30% 88%;
-    --sidebar-border: 220 15% 22%;
-    --sidebar-ring: 40 30% 70%;
+    --sidebar-background: 226 70% 5%;
+    --sidebar-foreground: 38 30% 85%;
+    --sidebar-primary: 38 52% 65%;
+    --sidebar-primary-foreground: 226 70% 6%;
+    --sidebar-accent: 225 40% 11%;
+    --sidebar-accent-foreground: 38 30% 85%;
+    --sidebar-border: 225 30% 12%;
+    --sidebar-ring: 38 52% 65%;
 
-    --navy-deep: 220 45% 5%;
-    --cream: 40 30% 92%;
-    --cream-dim: 40 15% 65%;
-    --gold: 38 60% 60%;
-    --champagne: 38 55% 70%;
+    --navy-deep: 226 80% 4%;
+    --cream: 38 30% 92%;
+    --cream-dim: 38 15% 60%;
+    --gold: 38 52% 65%;
+    --champagne: 38 50% 72%;
     --emerald: 158 50% 50%;
     --teal: 185 55% 50%;
 
-    --gradient-ocean: linear-gradient(135deg, hsl(220 45% 8%) 0%, hsl(185 50% 18%) 100%);
-    --gradient-hero: radial-gradient(ellipse at top, hsl(220 40% 12%) 0%, hsl(220 45% 6%) 70%);
-    --gradient-gold: linear-gradient(135deg, hsl(38 65% 65%) 0%, hsl(38 55% 50%) 100%);
-    --shadow-luxury: 0 30px 80px -20px hsl(0 0% 0% / 0.55), 0 12px 30px -12px hsl(0 0% 0% / 0.4);
-    --shadow-glow-gold: 0 0 50px -8px hsl(38 60% 60% / 0.4);
-    --glass-bg: 220 32% 11% / 0.55;
-    --glass-border: 38 30% 55% / 0.18;
+    --gradient-ocean: linear-gradient(135deg, hsl(226 70% 7%) 0%, hsl(185 50% 16%) 100%);
+    --gradient-hero: radial-gradient(ellipse at top, hsl(225 55% 10%) 0%, hsl(226 73% 5%) 70%);
+    --gradient-gold: linear-gradient(135deg, hsl(38 60% 68%) 0%, hsl(38 52% 52%) 100%);
+    --shadow-luxury: 0 30px 80px -20px hsl(0 0% 0% / 0.65), 0 12px 30px -12px hsl(0 0% 0% / 0.5);
+    --shadow-glow-gold: 0 0 50px -8px hsl(38 52% 65% / 0.35);
+    --glass-bg: 225 55% 9% / 0.55;
+    --glass-border: 38 40% 55% / 0.16;
+    --gold-border: rgba(212, 178, 122, 0.20);
+    --gold-border-hover: rgba(212, 178, 122, 0.40);
   }
 }
 
@@ -213,6 +218,30 @@
   }
   .blink-dot {
     animation: blink-dot 1s ease-in-out infinite;
+  }
+
+  /* ── Luxury card treatment matching the Claude Design export ── */
+  .lux-card {
+    background-color: hsl(var(--card));
+    border: 1px solid var(--gold-border, rgba(212,178,122,0.20));
+    border-radius: 1rem;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  }
+  .lux-card:hover {
+    border-color: var(--gold-border-hover, rgba(212,178,122,0.38));
+    box-shadow: 0 8px 32px -12px hsl(0 0% 0% / 0.45);
+  }
+  .lux-card-flat {
+    background-color: hsl(var(--card));
+    border: 1px solid hsl(var(--border));
+    border-radius: 1rem;
+  }
+  .lux-edge-gold {
+    border-left: 3px solid hsl(var(--gold));
+  }
+  .dark .lux-scrim {
+    background: hsl(226 73% 4% / 0.85);
+    backdrop-filter: blur(12px);
   }
 }
 
