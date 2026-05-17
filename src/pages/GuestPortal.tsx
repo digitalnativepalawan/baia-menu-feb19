@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
-import { LogOut, UtensilsCrossed, MapPin, Car, Bike, MessageSquare, Star, Receipt, ArrowLeft, ChevronRight, ClipboardList, Calendar, Clock, Users, StickyNote, CheckCircle2, Utensils, Palmtree, Truck, CreditCard, FileText, Loader2, ConciergeBell, AlertTriangle, Bell, Info, Phone, Mail, MapPinned, Moon } from 'lucide-react';
+import { LogOut, UtensilsCrossed, MapPin, Car, Bike, MessageSquare, Star, Receipt, ArrowLeft, ChevronRight, ClipboardList, Calendar, Clock, Users, StickyNote, CheckCircle2, Utensils, Palmtree, Truck, CreditCard, FileText, Loader2, ConciergeBell, AlertTriangle, Bell, Info, Phone, Mail, MapPinned, Moon, Home, Settings, HeadphonesIcon, Map as MapIcon, Plus, User, Globe } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { setGuestSession } from '@/hooks/useGuestSession';
 import { HermesChatWidget } from '@/components/HermesChatWidget';
@@ -35,6 +35,82 @@ const getPortalSession = (): GuestPortalSession | null => {
     return parsed;
   } catch { sessionStorage.removeItem(GUEST_PORTAL_KEY); return null; }
 };
+
+const SidebarLink = ({ icon, label, active, badge, onClick }: { icon: React.ReactNode, label: string, active?: boolean, badge?: number, onClick?: () => void }) => (
+  <button onClick={onClick} className={`w-full flex items-center justify-between px-4 py-3 rounded-xl transition-colors ${active ? 'bg-gold/10 text-gold' : 'text-muted-foreground hover:bg-secondary hover:text-foreground'}`}>
+    <div className="flex items-center gap-3">
+      {icon}
+      <span className="font-body text-sm font-medium">{label}</span>
+    </div>
+    {badge ? <span className="bg-destructive text-destructive-foreground text-[10px] font-bold px-1.5 py-0.5 rounded-full">{badge}</span> : null}
+  </button>
+);
+
+const BottomNavLink = ({ icon, label, active, badge, onClick }: { icon: React.ReactNode, label: string, active?: boolean, badge?: number, onClick?: () => void }) => (
+  <button onClick={onClick} className={`relative flex flex-col items-center gap-1 p-2 ${active ? 'text-gold' : 'text-muted-foreground hover:text-foreground'}`}>
+    {icon}
+    <span className="font-body text-[10px]">{label}</span>
+    {badge ? <span className="absolute top-1 right-1 bg-destructive text-destructive-foreground text-[8px] font-bold px-1 rounded-full">{badge}</span> : null}
+  </button>
+);
+
+const QuickActionTile = ({ icon, label, onClick }: { icon: React.ReactNode, label: string, onClick: () => void }) => (
+  <button onClick={onClick} className="lux-card p-4 flex flex-col items-center justify-center gap-3 hover:border-gold/40 transition-colors h-[100px]">
+    <div className="w-10 h-10 rounded-full bg-background flex items-center justify-center shadow-sm">
+       {icon}
+    </div>
+    <span className="font-body text-[11px] text-foreground text-center leading-tight">{label}</span>
+  </button>
+);
+
+const DetailRow = ({ icon, label, value }: { icon: React.ReactNode, label: string, value: string }) => (
+  <div className="flex justify-between items-center">
+     <div className="flex items-center gap-2">
+        <span className="text-muted-foreground w-4 h-4 flex items-center justify-center">{icon}</span>
+        <span className="font-body text-xs text-muted-foreground">{label}</span>
+     </div>
+     <span className="font-body text-xs text-foreground font-medium">{value}</span>
+  </div>
+);
+
+const ServiceRow = ({ icon, title, time, status, statusColor }: { icon: React.ReactNode, title: string, time: string, status: string, statusColor: string }) => (
+  <div className="flex justify-between items-center">
+     <div className="flex items-center gap-3">
+        <span className="text-gold w-5 h-5 flex items-center justify-center">{icon}</span>
+        <div>
+           <p className="font-body text-xs text-foreground">{title}</p>
+           <p className="font-body text-[10px] text-muted-foreground">{time}</p>
+        </div>
+     </div>
+     <span className={`font-body text-[10px] ${statusColor}`}>{status}</span>
+  </div>
+);
+
+const MessageRow = ({ avatar, avatarColor, name, time, preview }: { avatar: string, avatarColor: string, name: string, time: string, preview: string }) => (
+  <div className="flex items-start gap-3">
+     <div className={`w-8 h-8 rounded-full flex flex-shrink-0 items-center justify-center font-display text-xs ${avatarColor}`}>
+        {avatar}
+     </div>
+     <div className="min-w-0 flex-1">
+        <div className="flex justify-between items-center mb-0.5">
+           <p className="font-body text-xs text-foreground font-medium">{name}</p>
+           <p className="font-body text-[10px] text-muted-foreground">{time}</p>
+        </div>
+        <p className="font-body text-[10px] text-muted-foreground truncate">{preview}</p>
+     </div>
+  </div>
+);
+
+const TimelineStep = ({ icon, date, title, time, active }: { icon: React.ReactNode, date: string, title: string, time: string, active: boolean }) => (
+  <div className="flex flex-col items-center flex-1 text-center relative">
+     <div className={`w-8 h-8 rounded-full flex items-center justify-center mb-2 z-10 ${active ? 'bg-card border-2 border-accent' : 'bg-secondary border border-border'}`}>
+        <span className={active ? 'text-accent w-4 h-4' : 'text-muted-foreground w-4 h-4'}>{icon}</span>
+     </div>
+     <p className="font-body text-[9px] uppercase tracking-wider text-muted-foreground mb-1">{date}</p>
+     <p className="font-body text-[10px] text-foreground font-medium leading-tight max-w-[80px]">{title}</p>
+     <p className="font-body text-[9px] text-muted-foreground mt-1">{time}</p>
+  </div>
+);
 
 const GuestPortal = () => {
   const navigate = useNavigate();
@@ -175,218 +251,338 @@ const GuestPortal = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background relative">
-      {/* Ambient gradient layer */}
-      <div
-        aria-hidden
-        className="pointer-events-none fixed inset-0 -z-10"
-        style={{
-          background:
-            'radial-gradient(ellipse 90% 55% at 50% -10%, hsl(var(--gold) / 0.12), transparent 60%),' +
-            'radial-gradient(ellipse 70% 50% at 100% 100%, hsl(var(--teal) / 0.10), transparent 70%),' +
-            'linear-gradient(180deg, hsl(var(--background)) 0%, hsl(var(--navy-deep)) 100%)',
-        }}
-      />
-      <div className="max-w-lg mx-auto px-4 py-6">
-        {view !== 'dashboard' ? (
-          <button onClick={() => setView('dashboard')} className="flex items-center gap-1 text-muted-foreground hover:text-foreground font-body text-sm mb-4">
-            <ArrowLeft className="w-4 h-4" /> Back
-          </button>
-        ) : (
-          <>
-            {/* ── Top header: greeting + bell + avatar ── */}
-            <header className="flex items-start justify-between gap-3 mb-5">
-              <div className="flex items-start gap-3 min-w-0">
-                {profile?.logo_url && (
-                  <img src={profile.logo_url} alt={profile?.resort_name || 'Logo'} className="w-12 h-12 object-contain shrink-0" />
-                )}
-                <div className="min-w-0">
-                  <h1 className="font-serif-display text-2xl text-foreground leading-tight truncate">
-                    Hello, {session.guest_name.split(' ')[0]}! <span>👋</span>
-                  </h1>
-                  <p className="font-body text-xs text-muted-foreground mt-0.5">
-                    Welcome to <span className="text-gold">{profile?.resort_name || 'BAIA Boutique'}</span>
-                  </p>
-                  <p className="font-body text-[11px] text-muted-foreground">
-                    We're here to make your stay exceptional.
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <button
-                  type="button"
-                  onClick={() => setView('requests')}
-                  aria-label="Notifications"
-                  className="relative w-10 h-10 rounded-full luxury-glass flex items-center justify-center hover:border-gold/40 transition-colors"
-                >
-                  <Bell className="w-4 h-4 text-foreground" />
-                  {notifCount > 0 && (
-                    <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold flex items-center justify-center">
-                      {notifCount > 9 ? '9+' : notifCount}
-                    </span>
+    <div className="min-h-screen bg-background flex">
+      {/* ?????? DESKTOP SIDEBAR ?????? */}
+      <aside className="hidden md:flex w-[260px] flex-col bg-card border-r border-border h-screen sticky top-0 shrink-0 z-10">
+        <div className="p-6">
+          <div className="flex items-center gap-3 mb-8">
+            {profile?.logo_url ? <img src={profile.logo_url} alt="Logo" className="w-10 h-10 object-contain" /> : <Palmtree className="w-8 h-8 text-gold" />}
+            <div>
+              <p className="font-serif-display text-lg leading-none text-foreground">{profile?.resort_name ? profile.resort_name.split(' ')[0] : 'BAIA'}</p>
+              <p className="font-body text-[10px] tracking-widest text-gold uppercase">{profile?.resort_name ? profile.resort_name.split(' ').slice(1).join(' ') : 'Boutique'}</p>
+            </div>
+          </div>
+          <nav className="space-y-1">
+            <SidebarLink icon={<Home className="w-5 h-5" />} label="Dashboard" active={view === 'dashboard'} onClick={() => setView('dashboard')} />
+            <SidebarLink icon={<Calendar className="w-5 h-5" />} label="My Stay" active={view === 'reservation'} onClick={() => setView('reservation')} />
+            <SidebarLink icon={<ConciergeBell className="w-5 h-5" />} label="Services" active={view === 'request'} onClick={() => setView('request')} />
+            <SidebarLink icon={<Utensils className="w-5 h-5" />} label="Dining" onClick={() => { setGuestSession({ room_id: session.room_id, room_name: session.room_name, guest_name: session.guest_name, booking_id: session.booking_id }); navigate('/menu?mode=guest-order&dept=kitchen'); }} />
+            <SidebarLink icon={<Palmtree className="w-5 h-5" />} label="Experiences" active={view === 'experiences' || view === 'tours'} onClick={() => setView('experiences')} />
+            <SidebarLink icon={<CreditCard className="w-5 h-5" />} label="Bills & Payments" active={view === 'bill'} onClick={() => setView('bill')} />
+            <SidebarLink icon={<MessageSquare className="w-5 h-5" />} label="Messages" badge={notifCount > 0 ? notifCount : undefined} active={view === 'requests'} onClick={() => setView('requests')} />
+            <SidebarLink icon={<MapIcon className="w-5 h-5" />} label="Local Guide" />
+            <SidebarLink icon={<Settings className="w-5 h-5" />} label="Settings" />
+          </nav>
+        </div>
+        <div className="mt-auto p-6">
+          <div className="lux-card p-4 text-center">
+            <HeadphonesIcon className="w-6 h-6 mx-auto text-gold mb-2" />
+            <p className="font-display text-sm text-gold">Need Help?</p>
+            <p className="font-body text-[11px] text-muted-foreground mb-3">We're here for you 24/7</p>
+            <Button variant="outline" className="w-full text-xs border-gold/40 text-gold hover:bg-gold/10 hover:border-gold h-9" onClick={() => setView('message')}>Contact Us</Button>
+          </div>
+        </div>
+      </aside>
+
+      {/* ?????? MAIN CONTENT AREA ?????? */}
+      <main className="flex-1 relative min-h-screen pb-24 md:pb-8 overflow-y-auto">
+        {/* Ambient gradient layer */}
+        <div
+          aria-hidden
+          className="pointer-events-none fixed inset-0 -z-10"
+          style={{
+            background:
+              'radial-gradient(ellipse 90% 55% at 50% -10%, hsl(var(--gold) / 0.12), transparent 60%),' +
+              'radial-gradient(ellipse 70% 50% at 100% 100%, hsl(var(--teal) / 0.10), transparent 70%),' +
+              'linear-gradient(180deg, hsl(var(--background)) 0%, hsl(var(--navy-deep)) 100%)',
+          }}
+        />
+        <div className="max-w-6xl mx-auto px-4 sm:px-8 py-6 sm:py-8">
+          {view !== 'dashboard' ? (
+            <button onClick={() => setView('dashboard')} className="flex items-center gap-1 text-muted-foreground hover:text-foreground font-body text-sm mb-4">
+              <ArrowLeft className="w-4 h-4" /> Back
+            </button>
+          ) : (
+            <>
+              {/* ?????? Top header (Desktop & Mobile) ?????? */}
+              <header className="flex items-start justify-between gap-3 mb-6 sm:mb-8">
+                <div className="flex items-start gap-3 min-w-0 md:hidden">
+                  {profile?.logo_url && (
+                    <img src={profile.logo_url} alt={profile?.resort_name || 'Logo'} className="w-12 h-12 object-contain shrink-0" />
                   )}
-                </button>
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-gold/40 to-teal/40 border border-gold/40 flex items-center justify-center">
-                  <span className="font-serif-display text-sm text-foreground">
-                    {session.guest_name.split(' ').map(p => p[0]).slice(0, 2).join('').toUpperCase()}
-                  </span>
-                </div>
-              </div>
-            </header>
-
-            {/* ── Upcoming Stay card ── */}
-            <div className="luxury-glass rounded-2xl overflow-hidden mb-5">
-              <div className="grid grid-cols-1 sm:grid-cols-2">
-                {/* Hero image / gradient panel */}
-                <div className="relative h-44 sm:h-auto sm:min-h-[220px] overflow-hidden">
-                  <div
-                    aria-hidden
-                    className="absolute inset-0"
-                    style={{
-                      background:
-                        'linear-gradient(135deg, hsl(220 40% 8%) 0%, hsl(var(--teal) / 0.5) 50%, hsl(38 80% 45%) 100%)',
-                    }}
-                  />
-                  <svg aria-hidden viewBox="0 0 400 220" preserveAspectRatio="none" className="absolute inset-0 w-full h-full opacity-50">
-                    <circle cx="320" cy="60" r="32" fill="hsl(38 90% 65%)" opacity="0.7" />
-                    <path d="M0 170 Q 80 140 160 165 T 320 160 T 460 175 L 460 220 L 0 220 Z" fill="hsl(220 60% 10%)" />
-                    <path d="M0 195 Q 100 175 200 190 T 400 185 L 400 220 L 0 220 Z" fill="hsl(220 50% 6%)" />
-                  </svg>
-                  <div className="absolute inset-x-0 bottom-0 p-4">
-                    <Palmtree className="w-6 h-6 text-gold/70" />
+                  <div className="min-w-0">
+                    <h1 className="font-serif-display text-2xl text-foreground leading-tight truncate">
+                      Hello, {session.guest_name.split(' ')[0]}! <span>????</span>
+                    </h1>
+                    <p className="font-body text-xs text-muted-foreground mt-0.5">
+                      Welcome to <span className="text-gold">{profile?.resort_name || 'BAIA Boutique'}</span>
+                    </p>
                   </div>
                 </div>
-                {/* Stay details */}
-                <div className="p-5">
-                  <p className="font-body text-[10px] tracking-[0.28em] uppercase text-gold/80 mb-1">Current Stay</p>
-                  <h2 className="font-serif-display text-2xl text-foreground leading-tight">{session.room_name}</h2>
-                  <p className="font-body text-xs text-muted-foreground flex items-center gap-1 mt-1">
-                    <MapPin className="w-3 h-3" /> {bookingDetails?.platform || 'Ocean View'}
-                  </p>
+                
+                <div className="hidden md:block min-w-0">
+                    <h1 className="font-serif-display text-3xl text-foreground leading-tight">Guest Portal</h1>
+                    <p className="font-body text-sm text-muted-foreground mt-1">Welcome back, {session.guest_name.split(' ')[0]} ????</p>
+                </div>
 
-                  <div className="grid grid-cols-2 gap-3 mt-4">
-                    <div>
-                      <p className="font-body text-[10px] tracking-[0.22em] uppercase text-muted-foreground flex items-center gap-1">
-                        <Calendar className="w-3 h-3" /> Check-In
-                      </p>
-                      <p className="font-serif-display text-base text-foreground mt-0.5">
-                        {bookingDetails?.check_in
-                          ? new Date(bookingDetails.check_in + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-                          : '—'}
-                      </p>
-                      <p className="font-body text-[10px] text-muted-foreground">3:00 PM</p>
-                    </div>
-                    <div>
-                      <p className="font-body text-[10px] tracking-[0.22em] uppercase text-muted-foreground flex items-center gap-1">
-                        <Calendar className="w-3 h-3" /> Check-Out
-                      </p>
-                      <p className="font-serif-display text-base text-foreground mt-0.5">
-                        {new Date(session.check_out + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                      </p>
-                      <p className="font-body text-[10px] text-muted-foreground">11:00 AM</p>
-                    </div>
-                  </div>
-
-                  <div className="border-t border-border/40 mt-4 pt-3 flex items-center gap-4 text-xs">
-                    <span className="font-body text-foreground/80 flex items-center gap-1.5">
-                      <Users className="w-3.5 h-3.5 text-muted-foreground" />
-                      {bookingDetails?.adults ?? 1} Adult{(bookingDetails?.adults ?? 1) !== 1 ? 's' : ''}
-                      {bookingDetails?.children ? `, ${bookingDetails.children} Child${bookingDetails.children !== 1 ? 'ren' : ''}` : ''}
-                    </span>
-                    {bookingDetails?.check_in && (() => {
-                      const nights = Math.max(1, Math.round((new Date(session.check_out).getTime() - new Date(bookingDetails.check_in).getTime()) / 86400000));
-                      return (
-                        <span className="font-body text-foreground/80 flex items-center gap-1.5">
-                          <Moon className="w-3.5 h-3.5 text-muted-foreground" />
-                          {nights} Night{nights !== 1 ? 's' : ''}
-                        </span>
-                      );
-                    })()}
-                  </div>
-
+                <div className="flex items-center gap-3 shrink-0">
+                  <button className="hidden md:flex items-center gap-1 font-body text-xs text-muted-foreground hover:text-foreground px-2 py-1 rounded-full luxury-glass">
+                     <Globe className="w-3.5 h-3.5" /> English <ChevronRight className="w-3 h-3 rotate-90" />
+                  </button>
                   <button
                     type="button"
-                    onClick={() => setView('reservation')}
-                    className="mt-4 w-full flex items-center justify-center gap-2 font-display text-xs tracking-[0.2em] uppercase text-gold border border-gold/40 rounded-xl py-2.5 hover:bg-gold/10 transition-colors min-h-[44px]"
+                    onClick={() => setView('requests')}
+                    aria-label="Notifications"
+                    className="relative w-10 h-10 rounded-full luxury-glass flex items-center justify-center hover:border-gold/40 transition-colors"
                   >
-                    View Reservation <ChevronRight className="w-4 h-4" />
+                    <Bell className="w-4 h-4 text-foreground" />
+                    {notifCount > 0 && (
+                      <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold flex items-center justify-center">
+                        {notifCount > 9 ? '9+' : notifCount}
+                      </span>
+                    )}
                   </button>
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-gold/40 to-teal/40 border border-gold/40 flex items-center justify-center relative">
+                    <span className="font-serif-display text-sm text-foreground">
+                      {session.guest_name.split(' ').map(p => p[0]).slice(0, 2).join('').toUpperCase()}
+                    </span>
+                    <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 rounded-full border border-background"></span>
+                  </div>
+                </div>
+              </header>
+
+              {/* ?????? Desktop Layout: Hero Image + Upcoming Stay Card ?????? */}
+              <div className="flex flex-col xl:flex-row gap-6 mb-8">
+                 {/* Hero Image / Gradient panel */}
+                 <div className="flex-1 relative h-48 sm:h-64 xl:h-auto xl:min-h-[280px] rounded-2xl overflow-hidden shadow-lg border border-border/50">
+                    <img src="https://images.unsplash.com/photo-1499793983690-e29da59ef1c2?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80" alt="Resort View" className="absolute inset-0 w-full h-full object-cover" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-background/90 via-background/20 to-transparent" />
+                 </div>
+                 
+                 {/* Upcoming Stay Card */}
+                 <div className="w-full xl:w-[380px] lux-card p-6 flex flex-col justify-between relative overflow-hidden">
+                    {/* Decorative blurred blob */}
+                    <div className="absolute -top-12 -right-12 w-32 h-32 bg-gold/10 rounded-full blur-3xl pointer-events-none" />
+                    <div className="relative z-10">
+                        <div className="flex justify-between items-start mb-2">
+                           <span className="bg-gold/10 text-gold font-body text-[10px] tracking-wider uppercase px-2 py-1 rounded-full border border-gold/20">Upcoming Stay</span>
+                        </div>
+                        <h2 className="font-serif-display text-3xl text-foreground leading-tight mb-1">{session.room_name}</h2>
+                        <p className="font-body text-xs text-muted-foreground flex items-center gap-1.5">
+                            <MapPin className="w-3.5 h-3.5" /> {bookingDetails?.platform || 'Ocean View'}
+                        </p>
+
+                        <div className="grid grid-cols-2 gap-4 mt-6">
+                            <div>
+                                <p className="font-body text-[10px] tracking-widest uppercase text-muted-foreground flex items-center gap-1.5 mb-1">
+                                    <Calendar className="w-3 h-3" /> Check-In
+                                </p>
+                                <p className="font-serif-display text-lg text-foreground">
+                                    {bookingDetails?.check_in
+                                    ? new Date(bookingDetails.check_in + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                                    : '???'}
+                                </p>
+                                <p className="font-body text-[11px] text-muted-foreground">3:00 PM</p>
+                            </div>
+                            <div>
+                                <p className="font-body text-[10px] tracking-widest uppercase text-muted-foreground flex items-center gap-1.5 mb-1">
+                                    <Calendar className="w-3 h-3" /> Check-Out
+                                </p>
+                                <p className="font-serif-display text-lg text-foreground">
+                                    {new Date(session.check_out + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                </p>
+                                <p className="font-body text-[11px] text-muted-foreground">11:00 AM</p>
+                            </div>
+                        </div>
+
+                        <div className="flex items-center gap-4 mt-6 font-body text-xs text-foreground">
+                            <span className="flex items-center gap-1.5"><Users className="w-4 h-4 text-muted-foreground" /> {bookingDetails?.adults ?? 2} Adults, {bookingDetails?.children ?? 0} Children</span>
+                            {bookingDetails?.check_in && (() => {
+                                const nights = Math.max(1, Math.round((new Date(session.check_out).getTime() - new Date(bookingDetails.check_in).getTime()) / 86400000));
+                                return <span className="flex items-center gap-1.5"><Moon className="w-4 h-4 text-muted-foreground" /> {nights} Night{nights !== 1 ? 's' : ''}</span>;
+                            })()}
+                        </div>
+                    </div>
+                    
+                    <button
+                        type="button"
+                        onClick={() => setView('reservation')}
+                        className="mt-6 w-full flex items-center justify-between font-body text-sm text-gold border border-gold/40 rounded-xl px-4 py-3 hover:bg-gold/5 transition-colors relative z-10"
+                    >
+                        View Reservation <ChevronRight className="w-4 h-4" />
+                    </button>
+                 </div>
+              </div>
+
+              {/* ?????? Quick Actions (Desktop only) ?????? */}
+              <div className="hidden md:block mb-8">
+                 <div className="flex justify-between items-center mb-4">
+                    <h3 className="font-body text-sm text-foreground">Quick Actions</h3>
+                    <button className="text-xs text-gold hover:underline">View All</button>
+                 </div>
+                 <div className="grid grid-cols-6 gap-4">
+                    <QuickActionTile icon={<Bell className="w-5 h-5 text-blue-400" />} label="Request Service" onClick={() => setView('request')} />
+                    <QuickActionTile icon={<UtensilsCrossed className="w-5 h-5 text-emerald-400" />} label="Book Dining" onClick={() => { setGuestSession({ room_id: session.room_id, room_name: session.room_name, guest_name: session.guest_name, booking_id: session.booking_id }); navigate('/menu?mode=guest-order&dept=kitchen'); }} />
+                    <QuickActionTile icon={<Palmtree className="w-5 h-5 text-purple-400" />} label="Spa Booking" onClick={() => setView('request')} />
+                    <QuickActionTile icon={<Bike className="w-5 h-5 text-amber-400" />} label="Activities & Tours" onClick={() => setView('tours')} />
+                    <QuickActionTile icon={<Settings className="w-5 h-5 text-teal-400" />} label="Room Preferences" onClick={() => setView('request')} />
+                    <QuickActionTile icon={<Clock className="w-5 h-5 text-cyan-400" />} label="Early Check-in" onClick={() => setView('request')} />
+                 </div>
+              </div>
+
+              {/* ?????? 3-Column Detail Cards (Desktop only) ?????? */}
+              <div className="hidden md:grid grid-cols-3 gap-6 mb-8">
+                 {/* Stay Details */}
+                 <div className="lux-card p-5">
+                    <div className="flex justify-between items-center mb-4">
+                       <h3 className="font-body text-sm text-foreground">Stay Details</h3>
+                       <button className="text-[11px] text-gold hover:underline" onClick={() => setView('reservation')}>View All</button>
+                    </div>
+                    <div className="space-y-4">
+                       <DetailRow icon={<ClipboardList />} label="Reservation ID" value={`#${session.booking_id.substring(0, 4)}`} />
+                       <DetailRow icon={<Home />} label="Room Type" value={session.room_name} />
+                       <DetailRow icon={<Utensils />} label="Plan" value="Bed & Breakfast" />
+                       <DetailRow icon={<Users />} label="Guests" value={`${bookingDetails?.adults ?? 2} Adults`} />
+                       <DetailRow icon={<Star className="text-gold" />} label="Special Request" value="None" />
+                    </div>
+                    <Button variant="outline" className="w-full mt-5 border-border hover:border-gold hover:text-gold" onClick={() => setView('reservation')}>Manage Booking</Button>
+                 </div>
+
+                 {/* Services */}
+                 <div className="lux-card p-5">
+                    <div className="flex justify-between items-center mb-4">
+                       <h3 className="font-body text-sm text-foreground">Services</h3>
+                       <button className="text-[11px] text-gold hover:underline" onClick={() => setView('requests')}>View All</button>
+                    </div>
+                    <div className="space-y-4">
+                       <ServiceRow icon={<Car />} title="Airport Transfer" time="May 24, 12:00 PM" status="Confirmed" statusColor="text-green-400" />
+                       <ServiceRow icon={<UtensilsCrossed />} title="Romantic Dinner" time="May 25, 7:00 PM" status="Confirmed" statusColor="text-green-400" />
+                       <ServiceRow icon={<Palmtree />} title="Spa Treatment" time="May 26, 2:00 PM" status="Scheduled" statusColor="text-blue-400" />
+                       <ServiceRow icon={<Clock />} title="Late Check-out" time="May 28, 2:00 PM" status="Requested" statusColor="text-amber-400" />
+                    </div>
+                    <Button variant="outline" className="w-full mt-5 border-border hover:border-gold hover:text-gold" onClick={() => setView('request')}>Request New Service</Button>
+                 </div>
+
+                 {/* Messages */}
+                 <div className="lux-card p-5">
+                    <div className="flex justify-between items-center mb-4">
+                       <h3 className="font-body text-sm text-foreground">Messages</h3>
+                       <button className="text-[11px] text-gold hover:underline" onClick={() => setView('requests')}>View All</button>
+                    </div>
+                    <div className="space-y-4">
+                       <MessageRow avatar="R" avatarColor="bg-purple-500/20 text-purple-400" name="Resort Team" time="10:30 AM" preview="Welcome to BAIA Boutique! Let us know if you need..." />
+                       <MessageRow avatar="C" avatarColor="bg-green-500/20 text-green-400" name="Concierge" time="Yesterday" preview="Your dinner reservation is confirmed." />
+                       <MessageRow avatar="S" avatarColor="bg-amber-500/20 text-amber-400" name="Spa" time="May 20" preview="Reminder: You have a spa appointment tomorrow." />
+                    </div>
+                 </div>
+              </div>
+
+              {/* ?????? Activity Timeline (Desktop only) ?????? */}
+              <div className="hidden md:block lux-card p-5 mb-8">
+                 <div className="flex justify-between items-center mb-6">
+                    <h3 className="font-body text-sm text-foreground">Activity Timeline</h3>
+                    <button className="text-[11px] text-gold hover:underline">View All</button>
+                 </div>
+                 <div className="flex justify-between relative px-4">
+                    <div className="absolute top-4 left-10 right-10 h-0.5 bg-border -z-10"></div>
+                    <TimelineStep icon={<Calendar />} date="May 10" title="Reservation Confirmed" time="10:24 AM" active />
+                    <TimelineStep icon={<CreditCard />} date="May 10" title="Payment Received" time="10:24 AM" active />
+                    <TimelineStep icon={<Bell />} date="May 15" title="Romantic Dinner Booked" time="2:15 PM" active />
+                    <TimelineStep icon={<Palmtree />} date="May 20" title="Spa Treatment Scheduled" time="9:00 AM" active />
+                    <TimelineStep icon={<Car />} date="May 22" title="Airport Transfer Confirmed" time="11:30 AM" active />
+                 </div>
+                 
+                 {/* Exclusive Offer Banner */}
+                 <div className="mt-8 bg-card border border-border rounded-xl p-4 flex justify-between items-center">
+                    <div className="flex items-center gap-4">
+                       <img src="https://images.unsplash.com/photo-1544148103-0773bf10d330?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80" className="w-24 h-16 object-cover rounded-lg" alt="Dinner" />
+                       <div>
+                          <p className="font-display text-[10px] tracking-widest uppercase text-gold mb-1">Exclusive Offer</p>
+                          <p className="font-body text-sm text-foreground font-medium">Sunset Dinner Experience</p>
+                          <p className="font-body text-xs text-muted-foreground">Enjoy a private 3-course dinner by the beach.</p>
+                       </div>
+                    </div>
+                    <div className="text-right">
+                       <Button className="bg-gold text-background hover:bg-gold/90 font-display text-xs mb-1 h-8">Book Now</Button>
+                       <p className="font-body text-[10px] text-muted-foreground">Limited availability</p>
+                    </div>
+                 </div>
+              </div>
+
+              {/* ?????? Mobile View: How can we help you today? ?????? */}
+              <div className="md:hidden luxury-glass rounded-2xl p-5 mb-5">
+                <h3 className="font-serif-display text-xl text-foreground mb-4">How can we help you today?</h3>
+                <div className="flex flex-col gap-3">
+                  <GuestTile
+                    icon={<UtensilsCrossed className="w-6 h-6" />}
+                    label="Order Food"
+                    subtitle="Browse our menu and order to your room"
+                    onClick={() => {
+                      setGuestSession({ room_id: session.room_id, room_name: session.room_name, guest_name: session.guest_name, booking_id: session.booking_id });
+                      navigate('/menu?mode=guest-order&dept=kitchen');
+                    }}
+                  />
+                  <GuestTile
+                    icon={<span className="text-2xl">????</span>}
+                    label="Order Drinks"
+                    subtitle="Cocktails, coffee, fresh juices & more"
+                    onClick={() => {
+                      setGuestSession({ room_id: session.room_id, room_name: session.room_name, guest_name: session.guest_name, booking_id: session.booking_id });
+                      navigate('/menu?mode=guest-order&dept=bar');
+                    }}
+                  />
+                  <GuestTile
+                    icon={<Palmtree className="w-6 h-6" />}
+                    label="Book Experiences"
+                    subtitle="Tours, transport & equipment rental"
+                    onClick={() => setView('experiences')}
+                  />
+                  <GuestTile
+                    icon={<MessageSquare className="w-6 h-6" />}
+                    label="Request Service"
+                    subtitle="Housekeeping, towels, or anything you need"
+                    onClick={() => setView('request')}
+                  />
+                  <GuestTile
+                    icon={<ConciergeBell className="w-6 h-6" />}
+                    label="Message Reception"
+                    subtitle="Send a note directly to our front desk"
+                    onClick={() => setView('message')}
+                  />
                 </div>
               </div>
-            </div>
 
-            {/* ── How can we help you today? ── */}
-            <div className="luxury-glass rounded-2xl p-5 mb-5">
-              <h3 className="font-serif-display text-xl text-foreground mb-4">How can we help you today?</h3>
-              <div className="flex flex-col gap-3">
-                <GuestTile
-                  icon={<UtensilsCrossed className="w-6 h-6" />}
-                  label="Order Food"
-                  subtitle="Browse our menu and order to your room"
-                  onClick={() => {
-                    setGuestSession({ room_id: session.room_id, room_name: session.room_name, guest_name: session.guest_name, booking_id: session.booking_id });
-                    navigate('/menu?mode=guest-order&dept=kitchen');
-                  }}
-                />
-                <GuestTile
-                  icon={<span className="text-2xl">🍹</span>}
-                  label="Order Drinks"
-                  subtitle="Cocktails, coffee, fresh juices & more"
-                  onClick={() => {
-                    setGuestSession({ room_id: session.room_id, room_name: session.room_name, guest_name: session.guest_name, booking_id: session.booking_id });
-                    navigate('/menu?mode=guest-order&dept=bar');
-                  }}
-                />
-                <GuestTile
-                  icon={<Palmtree className="w-6 h-6" />}
-                  label="Book Experiences"
-                  subtitle="Tours, transport & equipment rental"
-                  onClick={() => setView('experiences')}
-                />
-                <GuestTile
-                  icon={<MessageSquare className="w-6 h-6" />}
-                  label="Request Service"
-                  subtitle="Housekeeping, towels, or anything you need"
-                  onClick={() => setView('request')}
-                />
-                <GuestTile
-                  icon={<ConciergeBell className="w-6 h-6" />}
-                  label="Message Reception"
-                  subtitle="Send a note directly to our front desk"
-                  onClick={() => setView('message')}
-                />
+              {/* ?????? Mobile View: Quick access (5 tiles) ?????? */}
+              <div className="md:hidden grid grid-cols-5 gap-2 mb-6">
+                {[
+                  { icon: ClipboardList, label: 'My Orders', onClick: () => setView('orders') },
+                  { icon: CheckCircle2, label: 'My Requests', onClick: () => setView('requests') },
+                  { icon: Receipt, label: 'My Bill', onClick: () => setView('bill') },
+                  { icon: Star, label: 'Reviews', onClick: () => setView('review') },
+                  { icon: Info, label: 'Hotel Info', onClick: () => setView('hotel-info') },
+                ].map(({ icon: Icon, label, onClick }) => (
+                  <button
+                    key={label}
+                    type="button"
+                    onClick={onClick}
+                    className="luxury-glass rounded-xl p-2 flex flex-col items-center justify-center gap-1.5 hover:border-gold/40 transition-colors h-[80px]"
+                  >
+                    <Icon className="w-5 h-5 text-gold" />
+                    <span className="font-body text-[9px] text-foreground text-center leading-tight max-w-full break-words">{label}</span>
+                  </button>
+                ))}
               </div>
-            </div>
 
-            {/* ── Quick access (5 tiles): Orders / Requests / Bill / Reviews / Hotel Info ── */}
-            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5 mb-6">
-              {[
-                { icon: ClipboardList, label: 'My Orders', sub: 'Track your orders', onClick: () => setView('orders') },
-                { icon: CheckCircle2, label: 'My Requests', sub: 'View your requests', onClick: () => setView('requests') },
-                { icon: Receipt, label: 'My Bill', sub: 'Check your statement', onClick: () => setView('bill') },
-                { icon: Star, label: 'Reviews', sub: 'Share your experience', onClick: () => setView('review') },
-                { icon: Info, label: 'Hotel Info', sub: 'Explore hotel information', onClick: () => setView('hotel-info') },
-              ].map(({ icon: Icon, label, sub, onClick }) => (
-                <button
-                  key={label}
-                  type="button"
-                  onClick={onClick}
-                  className="luxury-glass rounded-xl p-3 flex flex-col items-center gap-1.5 hover:border-gold/40 transition-colors min-h-[96px] focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
-                >
-                  <Icon className="w-5 h-5 text-gold" />
-                  <span className="font-serif-display text-sm text-foreground text-center leading-tight">{label}</span>
-                  <span className="font-body text-[10px] text-muted-foreground text-center leading-tight">{sub}</span>
+              {/* Mobile View Logout */}
+              <div className="md:hidden mb-6">
+                <button onClick={logout} className="flex items-center justify-center gap-2 w-full font-body text-xs text-gold hover:text-foreground py-3">
+                  <LogOut className="w-3.5 h-3.5" /> Sign out
                 </button>
-              ))}
-            </div>
+              </div>
+            </>
+          )}
 
-            <button onClick={logout} className="flex items-center justify-center gap-2 w-full font-body text-xs text-gold hover:text-foreground py-3">
-              <LogOut className="w-3.5 h-3.5" /> Sign out
-            </button>
-          </>
-        )}
-
-        {/* Experiences hub — combines tours, transport, rentals */}
+        {/* Experiences hub ??? combines tours, transport, rentals */}
         {view === 'experiences' && (
           <div className="space-y-4">
             <h2 className="font-display text-lg text-foreground">Book an Experience</h2>
@@ -399,7 +595,7 @@ const GuestPortal = () => {
           </div>
         )}
 
-        {/* Message reception — simple text-to-reception */}
+        {/* Message reception ??? simple text-to-reception */}
         {view === 'message' && <MessageReceptionView session={session} qc={qc} onDone={() => setView('dashboard')} />}
 
         {view === 'tours' && <ToursView session={session} qc={qc} />}
@@ -413,9 +609,21 @@ const GuestPortal = () => {
         {view === 'hotel-info' && <HotelInfoView profile={profile} />}
         {view === 'reservation' && <ReservationDetailsView session={session} booking={bookingDetails} onBill={() => setView('bill')} /> }
 
-        {/* Hermes AI Assistant — available on all guest pages */}
+        {/* Hermes AI Assistant ??? available on all guest pages */}
         <HermesChatWidget guestSession={session} />
-      </div>
+        </div>
+      </main>
+
+      {/* ?????? MOBILE BOTTOM NAV ?????? */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-card/95 backdrop-blur-lg border-t border-border flex justify-around items-center h-16 z-50 px-2 pb-safe">
+         <BottomNavLink icon={<Home className="w-5 h-5" />} label="Home" active={view === 'dashboard'} onClick={() => setView('dashboard')} />
+         <BottomNavLink icon={<ConciergeBell className="w-5 h-5" />} label="Services" active={view === 'request'} onClick={() => setView('request')} />
+         <button onClick={() => setView('experiences')} className="w-12 h-12 rounded-full border border-gold flex items-center justify-center -mt-6 bg-background shadow-lg shadow-gold/20 flex-shrink-0">
+             <Plus className="w-6 h-6 text-gold" />
+         </button>
+         <BottomNavLink icon={<MessageSquare className="w-5 h-5" />} label="Messages" badge={notifCount > 0 ? notifCount : undefined} active={view === 'requests'} onClick={() => setView('requests')} />
+         <BottomNavLink icon={<User className="w-5 h-5" />} label="Profile" active={view === 'reservation'} onClick={() => setView('reservation')} />
+      </nav>
     </div>
   );
 };
@@ -433,7 +641,7 @@ const GuestTile = ({ icon, label, subtitle, onClick }: { icon: React.ReactNode; 
   </button>
 );
 
-/** Hotel info screen — shows resort profile contact + social links */
+/** Hotel info screen ??? shows resort profile contact + social links */
 const HotelInfoView = ({ profile }: { profile: any }) => (
   <div className="space-y-4">
     <h2 className="font-serif-display text-2xl text-foreground">Hotel Information</h2>
@@ -483,7 +691,7 @@ const HotelInfoView = ({ profile }: { profile: any }) => (
   </div>
 );
 
-/** Reservation details screen — summary of current stay */
+/** Reservation details screen ??? summary of current stay */
 const ReservationDetailsView = ({ session, booking, onBill }: { session: GuestPortalSession; booking: any; onBill: () => void }) => {
   const nights = booking?.check_in
     ? Math.max(1, Math.round((new Date(session.check_out).getTime() - new Date(booking.check_in).getTime()) / 86400000))
@@ -495,13 +703,13 @@ const ReservationDetailsView = ({ session, booking, onBill }: { session: GuestPo
         <div>
           <p className="font-body text-[10px] tracking-[0.28em] uppercase text-gold/80 mb-1">Room</p>
           <p className="font-serif-display text-xl text-foreground">{session.room_name}</p>
-          <p className="font-body text-xs text-muted-foreground">Guest · {session.guest_name}</p>
+          <p className="font-body text-xs text-muted-foreground">Guest ?? {session.guest_name}</p>
         </div>
         <div className="grid grid-cols-2 gap-4 border-t border-border/40 pt-4">
           <div>
             <p className="font-body text-[10px] tracking-[0.22em] uppercase text-muted-foreground">Check-In</p>
             <p className="font-serif-display text-base text-foreground mt-1">
-              {booking?.check_in ? new Date(booking.check_in + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}
+              {booking?.check_in ? new Date(booking.check_in + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '???'}
             </p>
             <p className="font-body text-[10px] text-muted-foreground">3:00 PM</p>
           </div>
@@ -554,7 +762,7 @@ const MessageReceptionView = ({ session, qc, onDone }: { session: GuestPortalSes
       status: 'pending',
     });
     import('@/lib/telegram').then(({ notifyTelegram }) => {
-      notifyTelegram('reception,managers', `🛎️ Guest Request\n${session.guest_name}\nMessage: ${message.trim()}`);
+      notifyTelegram('reception,managers', `??????? Guest Request\n${session.guest_name}\nMessage: ${message.trim()}`);
     });
     qc.invalidateQueries({ queryKey: ['guest-requests-admin'] });
     setSubmitting(false);
@@ -611,7 +819,7 @@ const ToursView = ({ session, qc }: { session: GuestPortalSession; qc: any }) =>
     if (!selectedTour) return;
     setSubmitting(true);
     const totalPrice = selectedTour.price * (parseInt(pax) || 1);
-    // Create pending booking — NO room charge yet
+    // Create pending booking ??? NO room charge yet
     await (supabase.from('tour_bookings') as any).insert({
       booking_id: session.booking_id,
       guest_name: session.guest_name,
@@ -625,7 +833,7 @@ const ToursView = ({ session, qc }: { session: GuestPortalSession; qc: any }) =>
       notes: notes.trim(),
     });
     import('@/lib/telegram').then(({ notifyTelegram }) => {
-      notifyTelegram('tours,managers', `🚐 New Booking\n${session.guest_name}\n${selectedTour.name} - ${date} ${pickupTime}`);
+      notifyTelegram('tours,managers', `???? New Booking\n${session.guest_name}\n${selectedTour.name} - ${date} ${pickupTime}`);
     });
     qc.invalidateQueries({ queryKey: ['tour-bookings-admin'] });
     toast.success('Tour request submitted! Staff will confirm shortly.');
@@ -645,9 +853,9 @@ const ToursView = ({ session, qc }: { session: GuestPortalSession; qc: any }) =>
             <div>
               <p className="font-body text-sm text-foreground font-medium">{t.name}</p>
               <p className="font-body text-xs text-muted-foreground">{t.description}</p>
-              <p className="font-body text-xs text-muted-foreground">{t.duration} · {t.schedule} · Max {t.max_pax} pax</p>
+              <p className="font-body text-xs text-muted-foreground">{t.duration} ?? {t.schedule} ?? Max {t.max_pax} pax</p>
             </div>
-            <span className="font-body text-sm text-accent font-medium">₱{t.price}/pax</span>
+            <span className="font-body text-sm text-accent font-medium">???{t.price}/pax</span>
           </div>
         </div>
       ))}
@@ -672,7 +880,7 @@ const ToursView = ({ session, qc }: { session: GuestPortalSession; qc: any }) =>
             <Label className="font-body text-xs text-muted-foreground flex items-center gap-1"><StickyNote className="w-3 h-3" /> Special Requests</Label>
             <Textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="e.g. Vegetarian lunch, need snorkel gear..." className="bg-card text-foreground min-h-[60px]" />
           </div>
-          <p className="font-body text-sm text-foreground text-right">Total: ₱{selectedTour.price * (parseInt(pax) || 1)}</p>
+          <p className="font-body text-sm text-foreground text-right">Total: ???{selectedTour.price * (parseInt(pax) || 1)}</p>
           <Button onClick={book} disabled={submitting} className="w-full">{submitting ? 'Submitting...' : 'Request Tour Booking'}</Button>
           <p className="font-body text-xs text-muted-foreground text-center">Staff will confirm and charge to your room</p>
         </div>
@@ -699,9 +907,9 @@ const TransportView = ({ session, qc }: { session: GuestPortalSession; qc: any }
   const book = async () => {
     if (!selectedRate) return;
     setSubmitting(true);
-    const label = `${selectedRate.origin} → ${selectedRate.destination}`;
-    // Create pending request — NO room charge yet
-    const transportDetail = `${label} — ₱${selectedRate.price} — ${pickupDate} ${pickupTime}`;
+    const label = `${selectedRate.origin} ??? ${selectedRate.destination}`;
+    // Create pending request ??? NO room charge yet
+    const transportDetail = `${label} ??? ???${selectedRate.price} ??? ${pickupDate} ${pickupTime}`;
     await supabase.from('guest_requests').insert({
       booking_id: session.booking_id,
       room_id: session.room_id,
@@ -711,7 +919,7 @@ const TransportView = ({ session, qc }: { session: GuestPortalSession; qc: any }
       status: 'pending',
     });
     import('@/lib/telegram').then(({ notifyTelegram }) => {
-      notifyTelegram('tours,managers', `🚐 New Booking\n${session.guest_name}\nTransport: ${transportDetail}`);
+      notifyTelegram('tours,managers', `???? New Booking\n${session.guest_name}\nTransport: ${transportDetail}`);
     });
     qc.invalidateQueries({ queryKey: ['guest-requests-admin'] });
     toast.success('Transport request submitted! Staff will confirm shortly.');
@@ -727,16 +935,16 @@ const TransportView = ({ session, qc }: { session: GuestPortalSession; qc: any }
         <div key={r.id} onClick={() => setSelectedRate(r)} className={`bg-card border rounded-lg p-4 cursor-pointer transition-colors ${selectedRate?.id === r.id ? 'border-accent' : 'border-border hover:border-muted-foreground'}`}>
           <div className="flex justify-between items-center">
             <div>
-              <p className="font-body text-sm text-foreground">{r.origin} → {r.destination}</p>
+              <p className="font-body text-sm text-foreground">{r.origin} ??? {r.destination}</p>
               {r.description && <p className="font-body text-xs text-muted-foreground">{r.description}</p>}
             </div>
-            <span className="font-body text-sm text-accent font-medium">₱{r.price}</span>
+            <span className="font-body text-sm text-accent font-medium">???{r.price}</span>
           </div>
         </div>
       ))}
       {selectedRate && (
         <div className="bg-secondary p-4 rounded-lg space-y-3">
-          <p className="font-body text-sm text-foreground">{selectedRate.origin} → {selectedRate.destination}</p>
+          <p className="font-body text-sm text-foreground">{selectedRate.origin} ??? {selectedRate.destination}</p>
           <div className="grid grid-cols-2 gap-2">
             <div className="space-y-1">
               <Label className="font-body text-xs text-muted-foreground flex items-center gap-1"><Calendar className="w-3 h-3" /> Date</Label>
@@ -747,7 +955,7 @@ const TransportView = ({ session, qc }: { session: GuestPortalSession; qc: any }
               <Input type="time" value={pickupTime} onChange={e => setPickupTime(e.target.value)} className="bg-card text-foreground h-10" />
             </div>
           </div>
-          <p className="font-body text-sm text-foreground text-right">Total: ₱{selectedRate.price}</p>
+          <p className="font-body text-sm text-foreground text-right">Total: ???{selectedRate.price}</p>
           <Button onClick={book} disabled={submitting} className="w-full">{submitting ? 'Submitting...' : 'Request Transport'}</Button>
           <p className="font-body text-xs text-muted-foreground text-center">Staff will confirm and charge to your room</p>
         </div>
@@ -780,18 +988,18 @@ const RentalsView = ({ session, qc }: { session: GuestPortalSession; qc: any }) 
   const totalPrice = selectedRate ? selectedRate.price * (parseInt(qty) || 1) : 0;
 
   const ITEM_ICONS: Record<string, string> = {
-    'Scooter': '🛵',
-    'Bicycle': '🚲',
-    'Kayak': '🛶',
-    'Surfboard': '🏄',
-    'Snorkel': '🤿',
+    'Scooter': '????',
+    'Bicycle': '????',
+    'Kayak': '????',
+    'Surfboard': '????',
+    'Snorkel': '????',
   };
 
   const book = async () => {
     if (!selectedRate) return;
     setSubmitting(true);
-    const detail = `${selectedType} — ${selectedRate.rate_name} × ${qty} — ₱${totalPrice} — Start: ${startDate}${notes.trim() ? ` — Notes: ${notes.trim()}` : ''}`;
-    // Create pending request — NO room charge yet
+    const detail = `${selectedType} ??? ${selectedRate.rate_name} ?? ${qty} ??? ???${totalPrice} ??? Start: ${startDate}${notes.trim() ? ` ??? Notes: ${notes.trim()}` : ''}`;
+    // Create pending request ??? NO room charge yet
     await supabase.from('guest_requests').insert({
       booking_id: session.booking_id,
       room_id: session.room_id,
@@ -801,7 +1009,7 @@ const RentalsView = ({ session, qc }: { session: GuestPortalSession; qc: any }) 
       status: 'pending',
     });
     import('@/lib/telegram').then(({ notifyTelegram }) => {
-      notifyTelegram('tours,managers', `🚐 New Booking\n${session.guest_name}\nRental: ${detail}`);
+      notifyTelegram('tours,managers', `???? New Booking\n${session.guest_name}\nRental: ${detail}`);
     });
     qc.invalidateQueries({ queryKey: ['guest-requests-admin'] });
     toast.success('Rental request submitted! Staff will confirm shortly.');
@@ -821,7 +1029,7 @@ const RentalsView = ({ session, qc }: { session: GuestPortalSession; qc: any }) 
         <div className="grid grid-cols-2 gap-3">
           {itemTypes.map(type => (
             <button key={type} onClick={() => setSelectedType(type)} className="bg-card border border-border rounded-lg p-5 flex flex-col items-center gap-2 hover:border-accent transition-colors">
-              <span className="text-3xl">{ITEM_ICONS[type] || '🏷️'}</span>
+              <span className="text-3xl">{ITEM_ICONS[type] || '???????'}</span>
               <span className="font-body text-sm text-foreground font-medium">{type}</span>
               <span className="font-body text-xs text-muted-foreground">{rates.filter((r: any) => r.item_type === type).length} options</span>
             </button>
@@ -834,7 +1042,7 @@ const RentalsView = ({ session, qc }: { session: GuestPortalSession; qc: any }) 
             <ArrowLeft className="w-3 h-3" /> All equipment
           </button>
 
-          <h3 className="font-body text-sm text-foreground font-medium">{ITEM_ICONS[selectedType] || '🏷️'} {selectedType} — Choose Duration</h3>
+          <h3 className="font-body text-sm text-foreground font-medium">{ITEM_ICONS[selectedType] || '???????'} {selectedType} ??? Choose Duration</h3>
 
           <RadioGroup value={selectedRate?.id || ''} onValueChange={id => setSelectedRate(typeRates.find((r: any) => r.id === id))}>
             {typeRates.map((r: any) => (
@@ -847,7 +1055,7 @@ const RentalsView = ({ session, qc }: { session: GuestPortalSession; qc: any }) 
                         <p className="font-body text-sm text-foreground">{r.rate_name}</p>
                         {r.description && <p className="font-body text-xs text-muted-foreground">{r.description}</p>}
                       </div>
-                      <span className="font-body text-sm text-accent font-medium">₱{r.price}</span>
+                      <span className="font-body text-sm text-accent font-medium">???{r.price}</span>
                     </div>
                   </Label>
                 </div>
@@ -872,8 +1080,8 @@ const RentalsView = ({ session, qc }: { session: GuestPortalSession; qc: any }) 
                 <Textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="e.g. Automatic scooter preferred, need helmet..." className="bg-card text-foreground min-h-[60px]" />
               </div>
               <div className="flex justify-between items-center">
-                <span className="font-body text-xs text-muted-foreground">{selectedRate.rate_name} × {qty}</span>
-                <span className="font-body text-sm text-foreground font-medium">Total: ₱{totalPrice}</span>
+                <span className="font-body text-xs text-muted-foreground">{selectedRate.rate_name} ?? {qty}</span>
+                <span className="font-body text-sm text-foreground font-medium">Total: ???{totalPrice}</span>
               </div>
               <Button onClick={book} disabled={submitting} className="w-full">{submitting ? 'Submitting...' : 'Request Rental'}</Button>
               <p className="font-body text-xs text-muted-foreground text-center">Staff will confirm availability and charge to your room</p>
@@ -910,7 +1118,7 @@ const RequestView = ({ session, qc }: { session: GuestPortalSession; qc: any }) 
       status: 'pending',
     });
     import('@/lib/telegram').then(({ notifyTelegram }) => {
-      notifyTelegram('reception,managers', `🛎️ Guest Request\n${session.guest_name}\n${type}: ${details.trim()}`);
+      notifyTelegram('reception,managers', `??????? Guest Request\n${session.guest_name}\n${type}: ${details.trim()}`);
     });
     qc.invalidateQueries({ queryKey: ['guest-requests-admin'] });
     toast.success('Request submitted!');
@@ -1089,7 +1297,7 @@ const OrdersView = ({ session }: { session: GuestPortalSession }) => {
             <div key={order.id} className="bg-card border border-border rounded-lg p-4 space-y-2">
               <div className="flex justify-between items-start">
                 <span className="font-body text-xs text-muted-foreground">
-                  {dateStr} · {timeStr}
+                  {dateStr} ?? {timeStr}
                 </span>
                 <div className="flex flex-wrap gap-1 justify-end">
                   <span className={`font-body text-xs px-2 py-0.5 rounded-full ${statusInfo.color}`}>
@@ -1106,7 +1314,7 @@ const OrdersView = ({ session }: { session: GuestPortalSession }) => {
                       order.kitchen_status === 'preparing' ? 'bg-amber-500/15 text-amber-400 border-amber-500/30' :
                       'bg-blue-500/15 text-blue-400 border-blue-500/30'
                     }`}>
-                      🍳 {DEPT_STATUS_LABELS[order.kitchen_status] || 'Waiting'}
+                      ???? {DEPT_STATUS_LABELS[order.kitchen_status] || 'Waiting'}
                     </span>
                   )}
                   {hasBarItems && (
@@ -1115,7 +1323,7 @@ const OrdersView = ({ session }: { session: GuestPortalSession }) => {
                       order.bar_status === 'preparing' ? 'bg-amber-500/15 text-amber-400 border-amber-500/30' :
                       'bg-blue-500/15 text-blue-400 border-blue-500/30'
                     }`}>
-                      🍹 {DEPT_STATUS_LABELS[order.bar_status] || 'Waiting'}
+                      ???? {DEPT_STATUS_LABELS[order.bar_status] || 'Waiting'}
                     </span>
                   )}
                 </div>
@@ -1131,10 +1339,10 @@ const OrdersView = ({ session }: { session: GuestPortalSession }) => {
                   return (
                     <div key={idx} className="flex items-center justify-between">
                       <div className="flex-1 min-w-0">
-                        <span className="font-body text-sm text-foreground">{item.qty || item.quantity || 1}× {item.name}</span>
+                        <span className="font-body text-sm text-foreground">{item.qty || item.quantity || 1}?? {item.name}</span>
                       </div>
                       <div className="flex items-center gap-2 flex-shrink-0">
-                        <span className="font-body text-xs text-muted-foreground">₱{((item.price || 0) * (item.qty || item.quantity || 1)).toLocaleString()}</span>
+                        <span className="font-body text-xs text-muted-foreground">???{((item.price || 0) * (item.qty || item.quantity || 1)).toLocaleString()}</span>
                         <span className={`font-body text-[10px] px-1.5 py-0.5 rounded ${
                           finalStatus === 'Served' || finalStatus === 'Ready' ? 'text-green-400' :
                           finalStatus === 'Preparing' ? 'text-amber-400' :
@@ -1149,7 +1357,7 @@ const OrdersView = ({ session }: { session: GuestPortalSession }) => {
               </div>
               <div className="border-t border-border pt-2 flex justify-between">
                 <span className="font-body text-sm text-foreground font-medium">Total</span>
-                <span className="font-body text-sm text-foreground font-medium">₱{(order.total || 0).toLocaleString()}</span>
+                <span className="font-body text-sm text-foreground font-medium">???{(order.total || 0).toLocaleString()}</span>
               </div>
             </div>
           );
@@ -1228,7 +1436,7 @@ const RequestsTrackerView = ({ session }: { session: GuestPortalSession }) => {
                 return (
                   <div key={t.id} className="bg-card border border-border rounded-lg p-3 space-y-1.5">
                     <div className="flex justify-between items-start">
-                      <span className="font-body text-sm text-foreground font-medium">🗺️ {t.tour_name}</span>
+                      <span className="font-body text-sm text-foreground font-medium">??????? {t.tour_name}</span>
                       <span className={`font-body text-xs px-2 py-0.5 rounded-full border ${st.color}`}>{st.label}</span>
                     </div>
                     <div className="flex gap-3 font-body text-xs text-muted-foreground">
@@ -1236,7 +1444,7 @@ const RequestsTrackerView = ({ session }: { session: GuestPortalSession }) => {
                       <span>{t.pax} pax</span>
                       <span>Pickup: {t.pickup_time}</span>
                     </div>
-                    {t.price > 0 && <p className="font-body text-xs text-accent">₱{t.price.toLocaleString()}</p>}
+                    {t.price > 0 && <p className="font-body text-xs text-accent">???{t.price.toLocaleString()}</p>}
                   </div>
                 );
               })}
@@ -1247,7 +1455,7 @@ const RequestsTrackerView = ({ session }: { session: GuestPortalSession }) => {
               <h3 className="font-body text-xs text-muted-foreground uppercase tracking-wider">Transport & Rentals</h3>
               {requests.map((r: any) => {
                 const st = REQUEST_STATUS_MAP[r.status] || REQUEST_STATUS_MAP['pending'];
-                const icon = r.request_type === 'Transport' ? '🚗' : r.request_type === 'Rental' ? '🛵' : '📋';
+                const icon = r.request_type === 'Transport' ? '????' : r.request_type === 'Rental' ? '????' : '????';
                 return (
                   <div key={r.id} className="bg-card border border-border rounded-lg p-3 space-y-1.5">
                     <div className="flex justify-between items-start">
@@ -1329,7 +1537,7 @@ const BillView = ({ session }: { session: GuestPortalSession }) => {
     },
   });
 
-  // Unpaid F&B orders (not charged to room — active orders awaiting payment)
+  // Unpaid F&B orders (not charged to room ??? active orders awaiting payment)
   const { data: unpaidOrders = [] } = useQuery({
     queryKey: ['guest-bill-unpaid-orders', session.room_id, session.room_name],
     queryFn: async () => {
@@ -1375,7 +1583,7 @@ const BillView = ({ session }: { session: GuestPortalSession }) => {
     },
   });
 
-  // Pending tours (includes confirmed — show immediately on bill)
+  // Pending tours (includes confirmed ??? show immediately on bill)
   const { data: pendingTours = [] } = useQuery({
     queryKey: ['guest-bill-pending-tours', session.booking_id],
     queryFn: async () => {
@@ -1449,10 +1657,10 @@ const BillView = ({ session }: { session: GuestPortalSession }) => {
     setSubmittingDispute(false);
     setContestOpen(false);
     setDisputeMessage('');
-    toast.success('Dispute submitted — reception has been notified.');
+    toast.success('Dispute submitted ??? reception has been notified.');
   };
 
-  // Realtime subscription — broadened to catch all DELETE events
+  // Realtime subscription ??? broadened to catch all DELETE events
   useEffect(() => {
     const channel = supabase
       .channel('guest-bill-realtime')
@@ -1515,13 +1723,13 @@ const BillView = ({ session }: { session: GuestPortalSession }) => {
     <div className="space-y-4">
       <h2 className="font-display text-lg text-foreground">My Bill</h2>
 
-      {/* Stay Details — hide for OTA stays since accommodation is prepaid */}
+      {/* Stay Details ??? hide for OTA stays since accommodation is prepaid */}
       {bookingRoomRate > 0 && !guestIsOta && (
         <div className="bg-card border border-border rounded-lg p-4 space-y-1">
           <p className="font-display text-xs tracking-wider text-muted-foreground uppercase">Stay Details</p>
           <div className="flex justify-between">
             <span className="font-body text-sm text-muted-foreground">Room Rate</span>
-            <span className="font-body text-sm text-foreground">₱{bookingRoomRate.toLocaleString()}/night</span>
+            <span className="font-body text-sm text-foreground">???{bookingRoomRate.toLocaleString()}/night</span>
           </div>
           <div className="flex justify-between">
             <span className="font-body text-sm text-muted-foreground">Duration</span>
@@ -1529,13 +1737,13 @@ const BillView = ({ session }: { session: GuestPortalSession }) => {
           </div>
           <div className="flex justify-between border-t border-border pt-1">
             <span className="font-body text-sm text-muted-foreground font-medium">Room Total</span>
-            <span className="font-body text-sm text-foreground font-medium">₱{(bookingRoomRate * bookingNights).toLocaleString()}</span>
+            <span className="font-body text-sm text-foreground font-medium">???{(bookingRoomRate * bookingNights).toLocaleString()}</span>
           </div>
         </div>
       )}
       {guestIsOta && (
         <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-3">
-          <p className="font-body text-sm text-emerald-400">✓ Accommodation paid via {bookingData.platform}</p>
+          <p className="font-body text-sm text-emerald-400">??? Accommodation paid via {bookingData.platform}</p>
           <p className="font-body text-xs text-muted-foreground">Only incidentals (food, tours, etc.) appear on your bill below.</p>
         </div>
       )}
@@ -1544,39 +1752,39 @@ const BillView = ({ session }: { session: GuestPortalSession }) => {
       <div className="bg-card border border-border rounded-lg p-4">
         <div className="flex justify-between mb-2">
           <span className="font-body text-sm text-muted-foreground">Total Charges</span>
-          <span className="font-body text-sm text-foreground">₱{totalCharges.toLocaleString()}</span>
+          <span className="font-body text-sm text-foreground">???{totalCharges.toLocaleString()}</span>
         </div>
         {unpaidOrdersTotal > 0 && (
           <>
             <div className="flex justify-between mb-1">
               <span className="font-body text-sm text-muted-foreground">F&B Subtotal</span>
-              <span className="font-body text-sm text-amber-400">₱{unpaidOrdersSubtotal.toLocaleString()}</span>
+              <span className="font-body text-sm text-amber-400">???{unpaidOrdersSubtotal.toLocaleString()}</span>
             </div>
             <div className="flex justify-between mb-2">
               <span className="font-body text-sm text-muted-foreground">Service Charge (10%)</span>
-              <span className="font-body text-sm text-amber-400">₱{unpaidOrdersSCTotal.toLocaleString()}</span>
+              <span className="font-body text-sm text-amber-400">???{unpaidOrdersSCTotal.toLocaleString()}</span>
             </div>
           </>
         )}
         {activeToursTotal > 0 && (
           <div className="flex justify-between mb-2">
             <span className="font-body text-sm text-muted-foreground">Tours & Experiences</span>
-            <span className="font-body text-sm text-foreground">₱{activeToursTotal.toLocaleString()}</span>
+            <span className="font-body text-sm text-foreground">???{activeToursTotal.toLocaleString()}</span>
           </div>
         )}
         {activeRequestsTotal > 0 && (
           <div className="flex justify-between mb-2">
             <span className="font-body text-sm text-muted-foreground">Transport & Rentals</span>
-            <span className="font-body text-sm text-foreground">₱{activeRequestsTotal.toLocaleString()}</span>
+            <span className="font-body text-sm text-foreground">???{activeRequestsTotal.toLocaleString()}</span>
           </div>
         )}
         <div className="flex justify-between mb-2">
           <span className="font-body text-sm text-muted-foreground">Total Payments</span>
-          <span className="font-body text-sm text-green-400">₱{totalPayments.toLocaleString()}</span>
+          <span className="font-body text-sm text-green-400">???{totalPayments.toLocaleString()}</span>
         </div>
         <div className="border-t border-border pt-2 flex justify-between">
           <span className="font-body text-sm text-foreground font-medium">Balance</span>
-          <span className={`font-body text-sm font-medium ${balance > 0 ? 'text-amber-400' : 'text-green-400'}`}>₱{balance.toLocaleString()}</span>
+          <span className={`font-body text-sm font-medium ${balance > 0 ? 'text-amber-400' : 'text-green-400'}`}>???{balance.toLocaleString()}</span>
         </div>
       </div>
 
@@ -1584,7 +1792,7 @@ const BillView = ({ session }: { session: GuestPortalSession }) => {
       {unpaidOrders.length > 0 && (
         <div className="space-y-2">
           <p className="font-display text-xs tracking-wider text-amber-400 uppercase flex items-center gap-1">
-            ⚠️ Active Orders
+            ?????? Active Orders
           </p>
           {unpaidOrders.map((o: any) => {
             const items = Array.isArray(o.items) ? o.items : [];
@@ -1595,7 +1803,7 @@ const BillView = ({ session }: { session: GuestPortalSession }) => {
             const statusDesc = o.status === 'New' ? 'Order received'
               : o.status === 'Preparing' ? 'Being prepared by kitchen'
               : o.status === 'Ready' ? 'Ready for pickup'
-              : 'Served ✓';
+              : 'Served ???';
             const orderTotal = Number(o.total || 0) + Number(o.service_charge || 0);
             return (
               <div key={o.id} className="bg-card border border-border p-3 rounded-lg space-y-1.5">
@@ -1615,8 +1823,8 @@ const BillView = ({ session }: { session: GuestPortalSession }) => {
                 <div className="space-y-0.5 pl-6">
                   {items.map((i: any, idx: number) => (
                     <div key={idx} className="flex justify-between">
-                      <span className="font-body text-sm text-foreground">{i.qty || 1}× {i.name}</span>
-                      <span className="font-body text-xs text-muted-foreground">₱{((i.price || 0) * (i.qty || 1)).toLocaleString()}</span>
+                      <span className="font-body text-sm text-foreground">{i.qty || 1}?? {i.name}</span>
+                      <span className="font-body text-xs text-muted-foreground">???{((i.price || 0) * (i.qty || 1)).toLocaleString()}</span>
                     </div>
                   ))}
                 </div>
@@ -1624,15 +1832,15 @@ const BillView = ({ session }: { session: GuestPortalSession }) => {
                 <div className="pl-6 border-t border-border/50 pt-1 space-y-0.5">
                   <div className="flex justify-between">
                     <span className="font-body text-[11px] text-muted-foreground">Subtotal</span>
-                    <span className="font-body text-[11px] text-muted-foreground">₱{Number(o.total || 0).toLocaleString()}</span>
+                    <span className="font-body text-[11px] text-muted-foreground">???{Number(o.total || 0).toLocaleString()}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="font-body text-[11px] text-muted-foreground">Service Charge (10%)</span>
-                    <span className="font-body text-[11px] text-muted-foreground">₱{Number(o.service_charge || 0).toLocaleString()}</span>
+                    <span className="font-body text-[11px] text-muted-foreground">???{Number(o.service_charge || 0).toLocaleString()}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="font-body text-xs text-foreground font-medium">Total</span>
-                    <span className="font-body text-xs text-amber-400 font-medium">₱{orderTotal.toLocaleString()}</span>
+                    <span className="font-body text-xs text-amber-400 font-medium">???{orderTotal.toLocaleString()}</span>
                   </div>
                 </div>
                 {o.status === 'Served' && (
@@ -1650,7 +1858,7 @@ const BillView = ({ session }: { session: GuestPortalSession }) => {
       {roomChargedOrders.length > 0 && (
         <div className="space-y-2">
           <p className="font-display text-xs tracking-wider text-blue-400 uppercase flex items-center gap-1">
-            🏠 Room Charges
+            ???? Room Charges
           </p>
           {roomChargedOrders.map((o: any) => {
             const items = Array.isArray(o.items) ? o.items : [];
@@ -1669,15 +1877,15 @@ const BillView = ({ session }: { session: GuestPortalSession }) => {
                 <div className="space-y-0.5 pl-6">
                   {items.map((i: any, idx: number) => (
                     <div key={idx} className="flex justify-between">
-                      <span className="font-body text-sm text-foreground">{i.qty || 1}× {i.name}</span>
-                      <span className="font-body text-xs text-muted-foreground">₱{((i.price || 0) * (i.qty || 1)).toLocaleString()}</span>
+                      <span className="font-body text-sm text-foreground">{i.qty || 1}?? {i.name}</span>
+                      <span className="font-body text-xs text-muted-foreground">???{((i.price || 0) * (i.qty || 1)).toLocaleString()}</span>
                     </div>
                   ))}
                 </div>
                 <div className="pl-6 border-t border-border/50 pt-1">
                   <div className="flex justify-between">
                     <span className="font-body text-xs text-foreground font-medium">Total</span>
-                    <span className="font-body text-xs text-blue-400 font-medium">₱{orderTotal.toLocaleString()}</span>
+                    <span className="font-body text-xs text-blue-400 font-medium">???{orderTotal.toLocaleString()}</span>
                   </div>
                 </div>
                 <div className="pl-6">
@@ -1700,11 +1908,11 @@ const BillView = ({ session }: { session: GuestPortalSession }) => {
                 <Palmtree className="w-4 h-4 text-emerald-400 mt-0.5" />
                 <div>
                   <p className="font-body text-sm text-foreground">{t.tour_name}</p>
-                  <p className="font-body text-xs text-muted-foreground">{t.tour_date} · {t.pax} pax{t.pickup_time ? ` · Pickup ${t.pickup_time}` : ''}</p>
+                  <p className="font-body text-xs text-muted-foreground">{t.tour_date} ?? {t.pax} pax{t.pickup_time ? ` ?? Pickup ${t.pickup_time}` : ''}</p>
                 </div>
               </div>
               <div className="text-right">
-                <span className="font-body text-sm text-muted-foreground">₱{(t.price || 0).toLocaleString()}</span>
+                <span className="font-body text-sm text-muted-foreground">???{(t.price || 0).toLocaleString()}</span>
                 <Badge variant="outline" className="ml-2 text-[10px]">Pending</Badge>
               </div>
             </div>
@@ -1736,11 +1944,11 @@ const BillView = ({ session }: { session: GuestPortalSession }) => {
                 <Palmtree className="w-4 h-4 text-emerald-400 mt-0.5" />
                 <div>
                   <p className="font-body text-sm text-foreground">{t.tour_name}</p>
-                  <p className="font-body text-xs text-muted-foreground">{t.tour_date} · {t.pax} pax{t.pickup_time ? ` · Pickup ${t.pickup_time}` : ''}</p>
+                  <p className="font-body text-xs text-muted-foreground">{t.tour_date} ?? {t.pax} pax{t.pickup_time ? ` ?? Pickup ${t.pickup_time}` : ''}</p>
                 </div>
               </div>
               <div className="text-right">
-                <span className="font-body text-sm text-foreground">₱{(t.price || 0).toLocaleString()}</span>
+                <span className="font-body text-sm text-foreground">???{(t.price || 0).toLocaleString()}</span>
                 <Badge variant="outline" className="ml-2 text-[10px] bg-emerald-500/20 text-emerald-300 border-emerald-500/30">Charged to Room</Badge>
               </div>
             </div>
@@ -1760,11 +1968,11 @@ const BillView = ({ session }: { session: GuestPortalSession }) => {
         </div>
       )}
 
-      {/* Room Charges — accommodation, adjustments, etc. */}
+      {/* Room Charges ??? accommodation, adjustments, etc. */}
       {roomCharges.length > 0 && (
         <div className="space-y-2">
           <p className="font-display text-xs tracking-wider text-muted-foreground uppercase flex items-center gap-1">
-            🏠 Room Charges
+            ???? Room Charges
           </p>
           {roomCharges.map((t: any) => (
             <div key={t.id} className="bg-primary/5 border border-primary/20 p-3 rounded-lg flex justify-between items-start">
@@ -1776,11 +1984,11 @@ const BillView = ({ session }: { session: GuestPortalSession }) => {
                   </p>
                   <p className="font-body text-xs text-muted-foreground">
                     {new Date(t.created_at).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
-                    {t.staff_name ? ` · ${t.staff_name}` : ''}
+                    {t.staff_name ? ` ?? ${t.staff_name}` : ''}
                   </p>
                 </div>
               </div>
-              <span className="font-body text-sm font-medium text-foreground">+₱{Math.abs(t.total_amount || 0).toLocaleString()}</span>
+              <span className="font-body text-sm font-medium text-foreground">+???{Math.abs(t.total_amount || 0).toLocaleString()}</span>
             </div>
           ))}
         </div>
@@ -1797,15 +2005,15 @@ const BillView = ({ session }: { session: GuestPortalSession }) => {
               {getBillIcon(t.notes, t.transaction_type)}
               <div>
                 <p className="font-body text-sm text-foreground">
-                  {t.payment_method}{t.notes ? ` — ${t.notes}` : ''}
+                  {t.payment_method}{t.notes ? ` ??? ${t.notes}` : ''}
                 </p>
                 <p className="font-body text-xs text-muted-foreground">
                   {new Date(t.created_at).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
-                  {t.staff_name ? ` · ${t.staff_name}` : ''}
+                  {t.staff_name ? ` ?? ${t.staff_name}` : ''}
                 </p>
               </div>
             </div>
-            <span className="font-body text-sm font-medium text-green-400">-₱{Math.abs(t.total_amount || 0).toLocaleString()}</span>
+            <span className="font-body text-sm font-medium text-green-400">-???{Math.abs(t.total_amount || 0).toLocaleString()}</span>
           </div>
         ))}
         {transactions.length === 0 && !hasPending && unpaidOrders.length === 0 && <p className="font-body text-sm text-muted-foreground text-center">No transactions yet.</p>}
@@ -1856,13 +2064,13 @@ const BillView = ({ session }: { session: GuestPortalSession }) => {
                 <>
                   <p className="font-body text-xs text-muted-foreground">By tapping below, you confirm that you have reviewed all charges and agree to this bill.</p>
                   <Button onClick={handleAgree} disabled={agreeing} className="w-full font-display tracking-wider h-12">
-                    {agreeing ? 'Submitting...' : '✓ I Agree to This Bill'}
+                    {agreeing ? 'Submitting...' : '??? I Agree to This Bill'}
                   </Button>
                 </>
               )}
               {!disputes.some((d: any) => d.status === 'open') && (
                 <Button variant="outline" onClick={() => setContestOpen(true)} className="w-full font-display tracking-wider h-12 border-amber-500/40 text-amber-400 hover:bg-amber-500/10">
-                  ⚠️ Contest This Bill
+                  ?????? Contest This Bill
                 </Button>
               )}
             </>
