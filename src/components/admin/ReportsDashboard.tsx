@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { format } from 'date-fns';
 
-// ????????? MOCK DATA ??????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????
+// ─── MOCK DATA ──────────────────────────────────────────────────────────
 const MOCK_REVENUE_DATA = [
   { date: 'May 18', revenue: 20000 },
   { date: 'May 19', revenue: 45000 },
@@ -59,7 +59,7 @@ const MOCK_REVENUE_SOURCES = [
   { source: 'Other Services', icon: <Briefcase className="w-4 h-4 text-purple-400" />, revenue: 22900, percentage: 5, trendData: [3, 4, 3, 5, 4, 6] },
 ];
 
-// ????????? HELPER COMPONENTS ??????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????
+// ─── HELPER COMPONENTS ──────────────────────────────────────────────────
 
 const Sparkline = ({ data, color = '#22c55e' }: { data: number[]; color?: string }) => {
   const max = Math.max(...data);
@@ -89,7 +89,7 @@ const KPICard = ({ title, value, trend, trendUp, icon, iconColor }: any) => (
     <div>
       <div className="text-xl md:text-2xl font-display text-foreground mb-1.5">{value}</div>
       <div className={`text-[10px] font-body flex items-center ${trendUp ? 'text-emerald-400' : 'text-rose-400'}`}>
-        {trendUp ? '???' : '???'} {trend} <span className="text-muted-foreground ml-1">vs last week</span>
+        {trendUp ? '▲' : '▼'} {trend} <span className="text-muted-foreground ml-1">vs last week</span>
       </div>
     </div>
   </div>
@@ -101,7 +101,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
       <div className="bg-card/95 backdrop-blur-md border border-border/50 p-3 rounded-lg shadow-xl">
         <p className="font-body text-xs text-muted-foreground mb-1">{label}</p>
         <p className="font-display text-sm text-foreground">
-          ??? {payload[0].value.toLocaleString()}
+          ₱ {payload[0].value.toLocaleString()}
         </p>
       </div>
     );
@@ -109,10 +109,23 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   return null;
 };
 
-// ????????? MAIN DASHBOARD ??????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????
+// ─── MAIN DASHBOARD ──────────────────────────────────────────────────────
+
+type DateRange = 'today' | 'yesterday' | 'week' | 'month' | 'ytd' | 'custom';
 
 const ReportsDashboard = () => {
-  const [date, setDate] = useState<Date>(new Date());
+  const [range, setRange] = useState<DateRange>('today');
+  const [customFrom, setCustomFrom] = useState<Date | undefined>();
+  const [customTo, setCustomTo] = useState<Date | undefined>();
+
+  const ranges: { key: DateRange; label: string }[] = [
+    { key: 'today', label: 'Today' },
+    { key: 'yesterday', label: 'Yesterday' },
+    { key: 'week', label: 'This Week' },
+    { key: 'month', label: 'This Month' },
+    { key: 'ytd', label: 'YTD' },
+    { key: 'custom', label: 'Custom' },
+  ];
 
   return (
     <div className="space-y-6 w-full max-w-7xl mx-auto pb-10">
@@ -124,41 +137,73 @@ const ReportsDashboard = () => {
           <p className="font-body text-sm text-muted-foreground">Real-time insights to drive better decisions.</p>
         </div>
         
-        <div className="flex items-center gap-4 flex-wrap">
-          {/* Weather Widget */}
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-secondary/30 border border-border/30">
-            <Cloud className="w-4 h-4 text-sky-400" />
-            <div className="flex flex-col">
-              <span className="font-display text-[11px] leading-none text-foreground">28??C</span>
-              <span className="font-body text-[9px] text-muted-foreground">San Vicente, Palawan</span>
-            </div>
+        <div className="flex flex-col items-end gap-3 flex-wrap">
+          <div className="flex flex-wrap gap-1.5 justify-end">
+            {ranges.map(r => (
+              <button
+                key={r.key}
+                onClick={() => setRange(r.key)}
+                className={`flex-1 min-w-[68px] min-h-[36px] px-3 rounded-xl border font-display text-[11px] tracking-[0.18em] uppercase transition-all ${
+                  range === r.key
+                    ? 'bg-gradient-gold text-background border-gold/60 luxury-glow-gold'
+                    : 'border-border/60 bg-card/40 backdrop-blur-sm text-muted-foreground hover:border-gold/40 hover:text-foreground'
+                }`}
+              >
+                {r.label}
+              </button>
+            ))}
           </div>
 
-          {/* Date Picker */}
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button variant="outline" className="h-9 bg-card/30 border-border/40 font-body text-xs text-foreground hover:bg-card/50">
-                May 18 - May 24, 2025 <ChevronDown className="w-3 h-3 ml-2 opacity-50" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="end">
-              <Calendar mode="single" selected={date} onSelect={(d) => d && setDate(d)} initialFocus />
-            </PopoverContent>
-          </Popover>
-          
-          {/* Avatar */}
-          <div className="w-9 h-9 rounded-full bg-gold overflow-hidden border-2 border-border/50 shrink-0">
-            <img src="https://api.dicebear.com/7.x/notionists/svg?seed=david&backgroundColor=D4B27A" alt="Avatar" className="w-full h-full object-cover" />
+          <div className="flex items-center gap-4 flex-wrap justify-end">
+            {/* Weather Widget */}
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-secondary/30 border border-border/30">
+              <Cloud className="w-4 h-4 text-sky-400" />
+              <div className="flex flex-col">
+                <span className="font-display text-[11px] leading-none text-foreground">28°C</span>
+                <span className="font-body text-[9px] text-muted-foreground">San Vicente, Palawan</span>
+              </div>
+            </div>
+
+            {/* Custom Date Picker */}
+            {range === 'custom' && (
+              <div className="flex gap-2">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="h-9 bg-card/30 border-border/40 font-body text-xs text-foreground hover:bg-card/50">
+                      {customFrom ? format(customFrom, 'MMM dd, yyyy') : 'From date'} <ChevronDown className="w-3 h-3 ml-2 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="end">
+                    <Calendar mode="single" selected={customFrom} onSelect={(d) => d && setCustomFrom(d)} initialFocus />
+                  </PopoverContent>
+                </Popover>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="h-9 bg-card/30 border-border/40 font-body text-xs text-foreground hover:bg-card/50">
+                      {customTo ? format(customTo, 'MMM dd, yyyy') : 'To date'} <ChevronDown className="w-3 h-3 ml-2 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="end">
+                    <Calendar mode="single" selected={customTo} onSelect={(d) => d && setCustomTo(d)} initialFocus />
+                  </PopoverContent>
+                </Popover>
+              </div>
+            )}
+            
+            {/* Avatar */}
+            <div className="w-9 h-9 rounded-full bg-gold overflow-hidden border-2 border-border/50 shrink-0">
+              <img src="https://api.dicebear.com/7.x/notionists/svg?seed=david&backgroundColor=D4B27A" alt="Avatar" className="w-full h-full object-cover" />
+            </div>
           </div>
         </div>
       </div>
 
       {/* KPI CARDS ROW */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-4">
-        <KPICard title="Revenue" value="??? 432,850" trend="12.4%" trendUp icon={<DollarSign />} iconColor="text-emerald-400" />
+        <KPICard title="Revenue" value="₱ 432,850" trend="12.4%" trendUp icon={<DollarSign />} iconColor="text-emerald-400" />
         <KPICard title="Occupancy" value="72%" trend="8.6%" trendUp icon={<BedDouble />} iconColor="text-blue-400" />
-        <KPICard title="ADR" value="??? 6,250" trend="5.3%" trendUp icon={<DollarSign />} iconColor="text-purple-400" />
-        <KPICard title="RevPAR" value="??? 4,500" trend="14.1%" trendUp icon={<TrendingUp />} iconColor="text-amber-400" />
+        <KPICard title="ADR" value="₱ 6,250" trend="5.3%" trendUp icon={<DollarSign />} iconColor="text-purple-400" />
+        <KPICard title="RevPAR" value="₱ 4,500" trend="14.1%" trendUp icon={<TrendingUp />} iconColor="text-amber-400" />
         <KPICard title="Total Guests" value="186" trend="9.8%" trendUp icon={<Users />} iconColor="text-sky-400" />
       </div>
 
@@ -182,7 +227,7 @@ const ReportsDashboard = () => {
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" vertical={false} />
                 <XAxis dataKey="date" stroke="#ffffff40" fontSize={10} tickLine={false} axisLine={false} dy={10} />
-                <YAxis stroke="#ffffff40" fontSize={10} tickLine={false} axisLine={false} tickFormatter={(v) => `???${v / 1000}K`} />
+                <YAxis stroke="#ffffff40" fontSize={10} tickLine={false} axisLine={false} tickFormatter={(v) => `₱${v / 1000}K`} />
                 <RechartsTooltip content={<CustomTooltip />} />
                 <Area type="monotone" dataKey="revenue" stroke="#D4B27A" strokeWidth={2} fillOpacity={1} fill="url(#colorRevenue)" />
               </AreaChart>
@@ -190,8 +235,8 @@ const ReportsDashboard = () => {
           </div>
           <div className="md:w-48 flex flex-col justify-center border-t md:border-t-0 md:border-l border-border/20 pt-4 md:pt-0 md:pl-6">
             <p className="font-body text-xs text-muted-foreground mb-1">Total Revenue</p>
-            <p className="font-display text-3xl text-foreground mb-2">??? 432,850</p>
-            <p className="font-body text-xs text-emerald-400 flex items-center mb-1">??? 12.4%</p>
+            <p className="font-display text-3xl text-foreground mb-2">₱ 432,850</p>
+            <p className="font-body text-xs text-emerald-400 flex items-center mb-1">▲ 12.4%</p>
             <p className="font-body text-[10px] text-muted-foreground">vs May 11 - May 17, 2025</p>
           </div>
         </div>
@@ -231,7 +276,7 @@ const ReportsDashboard = () => {
             </div>
           </div>
           <div className="mt-6 pt-4 border-t border-border/20 text-xs font-body text-emerald-400 flex items-center">
-            ??? 8.6% vs last week
+            ▲ 8.6% vs last week
           </div>
         </div>
 
@@ -378,7 +423,7 @@ const ReportsDashboard = () => {
                         <span className="font-body text-xs text-foreground">{source.source}</span>
                       </div>
                     </td>
-                    <td className="py-4 font-display text-sm text-foreground">??? {source.revenue.toLocaleString()}</td>
+                    <td className="py-4 font-display text-sm text-foreground">₱ {source.revenue.toLocaleString()}</td>
                     <td className="py-4 font-body text-xs text-muted-foreground">{source.percentage}%</td>
                     <td className="py-4 text-right pr-2">
                       <div className="flex justify-end">
