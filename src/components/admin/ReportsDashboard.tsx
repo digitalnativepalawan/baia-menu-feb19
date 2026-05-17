@@ -307,7 +307,7 @@ const ReportsDashboard = () => {
                     <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: item.color }} />
                     <span className="text-muted-foreground min-w-[80px]">{item.name}</span>
                   </div>
-                  <div className="flex items-center gap-3 w-full justify-end">
+                  <div className="flex items-center gap-3 justify-end">
                     <span className="text-foreground">{item.value}</span>
                     <span className="text-muted-foreground w-8 text-right">({item.percent}%)</span>
                   </div>
@@ -382,7 +382,7 @@ const ReportsDashboard = () => {
                     <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: item.color }} />
                     <span className="text-muted-foreground min-w-[80px]">{item.name}</span>
                   </div>
-                  <div className="flex items-center gap-3 w-full justify-end">
+                  <div className="flex items-center gap-3 justify-end">
                     <span className="text-foreground">{item.value}</span>
                     <span className="text-muted-foreground w-10 text-right">({item.percent}%)</span>
                   </div>
