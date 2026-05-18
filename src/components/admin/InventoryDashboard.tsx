@@ -12,7 +12,7 @@ import { format, subDays, differenceInDays, addDays } from 'date-fns';
 import { Label } from '@/components/ui/label';
 
 const UNITS = ['grams', 'ml', 'pcs', 'kg', 'liters', 'bottles', 'cans', 'slices'];
-const DEPARTMENTS = ['kitchen', 'bar', 'gardens', 'housekeeping'] as const;
+const DEPARTMENTS = ['kitchen', 'bar', 'gardens', 'housekeeping', 'dry_goods'] as const;
 type Department = typeof DEPARTMENTS[number];
 
 const DEPT_LABELS: Record<string, string> = {
@@ -20,6 +20,7 @@ const DEPT_LABELS: Record<string, string> = {
   bar: 'Bar',
   gardens: 'Gardens',
   housekeeping: 'Housekeeping',
+  dry_goods: 'Dry Goods',
 };
 
 const DEPT_ICONS: Record<string, React.ReactNode> = {
@@ -27,6 +28,7 @@ const DEPT_ICONS: Record<string, React.ReactNode> = {
   bar: <Wine className="w-4 h-4" />,
   gardens: <Palmtree className="w-4 h-4" />,
   housekeeping: <Bed className="w-4 h-4" />,
+  dry_goods: <Package className="w-4 h-4" />,
 };
 
 const DEPT_GRADIENT: Record<string, string> = {
@@ -34,6 +36,7 @@ const DEPT_GRADIENT: Record<string, string> = {
   bar: 'from-purple-500 to-purple-700',
   gardens: 'from-emerald-500 to-emerald-700',
   housekeeping: 'from-blue-500 to-blue-700',
+  dry_goods: 'from-amber-700 to-amber-900',
 };
 
 const BUFFER_DAYS_DEFAULT = 3;
