@@ -23,10 +23,10 @@ const DEPT_LABELS: Record<string, string> = {
 };
 
 const DEPT_ICONS: Record<string, string> = {
-  kitchen: '🍳',
-  bar: '🍸',
-  gardens: '🌿',
-  housekeeping: '🏨',
+  kitchen: 'ðŸ³',
+  bar: 'ðŸ¸',
+  gardens: 'ðŸŒ¿',
+  housekeeping: 'ðŸ¨',
 };
 
 const DEPT_GRADIENT: Record<string, string> = {
@@ -292,7 +292,7 @@ const InventoryDashboard = ({ readOnly = false }: { readOnly?: boolean }) => {
       }
     }
     if (updates.length === 0) {
-      toast.info('No threshold changes needed — no consumption data for these ingredients');
+      toast.info('No threshold changes needed â€” no consumption data for these ingredients');
       return;
     }
     for (const u of updates) {
@@ -383,202 +383,158 @@ const InventoryDashboard = ({ readOnly = false }: { readOnly?: boolean }) => {
   };
 
   return (
-    <div className="space-y-4">
-      {/* Department chip selector */}
-      <div className="flex flex-wrap gap-2">
-        <button
-          onClick={() => setSelectedDept('all')}
-          className={`px-3 py-1.5 rounded-full font-body text-xs border transition-all min-h-[32px] ${
-            selectedDept === 'all'
-              ? 'bg-gradient-gold text-background border-gold/60 shadow-[0_0_12px_-3px_hsl(var(--gold)/0.5)]'
-              : 'bg-secondary/50 text-foreground border-border/50 hover:border-gold/30'
-          }`}
-        >
-          All Departments
-        </button>
-        {DEPARTMENTS.map(dept => (
-          <button
-            key={dept}
-            onClick={() => setSelectedDept(dept)}
-            className={`px-3 py-1.5 rounded-full font-body text-xs border transition-all min-h-[32px] flex items-center gap-1.5 ${
-              selectedDept === dept
-                ? 'bg-gradient-gold text-background border-gold/60 shadow-[0_0_12px_-3px_hsl(var(--gold)/0.5)]'
-                : 'bg-secondary/50 text-foreground border-border/50 hover:border-gold/30'
-            }`}
-          >
-            <span>{DEPT_ICONS[dept]}</span>
-            {DEPT_LABELS[dept]}
-          </button>
-        ))}
-      </div>
-
-      <Tabs defaultValue="stock" className="w-full">
-        <TabsList className="w-full bg-secondary/50 border border-border/40 rounded-xl p-1 h-auto mb-4">
-          <TabsTrigger value="stock"
-            className="flex-1 font-body text-xs tracking-wider rounded-lg py-2 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:border data-[state=active]:border-border/60 data-[state=active]:shadow-sm">
-            <Package className="w-3.5 h-3.5 mr-1.5" /> Stock
-          </TabsTrigger>
-          <TabsTrigger value="consumption"
-            className="flex-1 font-body text-xs tracking-wider rounded-lg py-2 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:border data-[state=active]:border-border/60 data-[state=active]:shadow-sm">
-            <BarChart3 className="w-3.5 h-3.5 mr-1.5" /> Usage Log
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="stock" className="space-y-3">
-          {/* Stat cards */}
-          <div className="grid grid-cols-3 gap-2">
-            <div className="rounded-2xl border border-border/60 bg-card/50 p-3 backdrop-blur-sm">
-              <div className="flex items-center justify-between mb-1">
-                <p className="font-body text-[10px] tracking-[0.2em] uppercase text-muted-foreground">Value</p>
-                <svg width="40" height="18" viewBox="0 0 80 36" className="opacity-40">
-                  <polyline
-                    points="0,30 10,24 20,28 30,16 40,20 50,11 60,15 70,8 80,4"
-                    fill="none" stroke="hsl(var(--gold))" strokeWidth="2.5"
-                    strokeLinecap="round" strokeLinejoin="round"
-                  />
-                </svg>
-              </div>
-              <p className="font-display text-lg text-foreground leading-none">₱{totalValue.toLocaleString()}</p>
-              <p className="font-body text-[9px] text-muted-foreground mt-1">inventory value</p>
-            </div>
-
-            <button
-              onClick={() => setStockFilter(stockFilter === 'out' ? 'all' : 'out')}
-              className={`rounded-2xl border p-3 text-left transition-all backdrop-blur-sm ${
-                outOfStockCount > 0 ? 'border-red-500/40 bg-red-500/10' : 'border-border/60 bg-card/50'
-              }`}
-            >
-              <p className="font-body text-[10px] tracking-[0.2em] uppercase text-muted-foreground mb-1">Out of Stock</p>
-              <p className={`font-display text-lg leading-none ${outOfStockCount > 0 ? 'text-red-400' : 'text-foreground'}`}>
-                {outOfStockCount}
-              </p>
-              <p className="font-body text-[9px] text-muted-foreground mt-1">
-                {outOfStockCount === 0 ? 'No items' : 'items'}
-              </p>
+    <div className="space-y-6 max-w-7xl mx-auto pb-24">
+      {/* Header & Actions */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div>
+          <h2 className="font-serif-display text-2xl sm:text-3xl text-foreground">Inventory Management</h2>
+          <p className="font-body text-sm text-muted-foreground mt-1">Real-time stock tracking and automated thresholds</p>
+        </div>
+        {!readOnly && (
+          <div className="flex items-center gap-3 w-full md:w-auto">
+            <button onClick={() => setShowTransfer(true)}
+              className="flex-1 md:flex-none flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl border border-border/60 bg-card/50 text-foreground font-body text-xs tracking-wider hover:border-gold/30 hover:bg-card transition-all lux-card">
+              <ArrowRightLeft className="w-4 h-4" /> Transfer
             </button>
-
-            <button
-              onClick={() => setStockFilter(stockFilter === 'low' ? 'all' : 'low')}
-              className={`rounded-2xl border p-3 text-left transition-all backdrop-blur-sm ${
-                urgentItems.length > 0 ? 'border-amber-500/40 bg-amber-500/10' : 'border-border/60 bg-card/50'
-              }`}
-            >
-              <p className="font-body text-[10px] tracking-[0.2em] uppercase text-muted-foreground mb-1">Needs Attention</p>
-              <p className={`font-display text-lg leading-none ${urgentItems.length > 0 ? 'text-amber-400' : 'text-foreground'}`}>
-                {urgentItems.length}
-              </p>
-              <p className="font-body text-[9px] text-muted-foreground mt-1">
-                {urgentItems.length === 0 ? 'No items' : 'need reorder'}
-              </p>
+            <button onClick={openNew}
+              className="flex-1 md:flex-none flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl border border-gold/30 bg-gold/10 text-gold font-body text-xs tracking-wider hover:bg-gold/15 transition-colors shadow-[0_0_12px_-3px_hsl(var(--gold)/0.3)]">
+              <Plus className="w-4 h-4" /> Add Item
             </button>
           </div>
+        )}
+      </div>
 
-          {/* Missing cost alert */}
+      {/* KPI Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* Total Value */}
+        <div className="lux-card rounded-2xl p-5 border border-border/50 bg-card/40 backdrop-blur-md relative overflow-hidden group">
+          <div className="absolute -right-6 -top-6 w-24 h-24 bg-gradient-gold opacity-10 rounded-full blur-2xl group-hover:opacity-20 transition-opacity"></div>
+          <div className="flex justify-between items-start relative z-10">
+            <div>
+              <p className="font-body text-[10px] tracking-[0.2em] uppercase text-muted-foreground mb-1">Total Inventory Value</p>
+              <div className="flex items-baseline gap-2">
+                <span className="font-display text-3xl text-foreground tracking-tight">₱{totalValue.toLocaleString()}</span>
+              </div>
+            </div>
+            <div className="w-10 h-10 rounded-xl bg-gold/10 flex items-center justify-center border border-gold/20">
+              <Zap className="w-5 h-5 text-gold" />
+            </div>
+          </div>
           {missingCostCount > 0 && (
-            <div className="p-3 rounded-xl border border-amber-500/30 bg-amber-500/5 flex items-center gap-2">
-              <AlertTriangle className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-              <p className="font-body text-xs text-foreground/80">
-                {missingCostCount} ingredient{missingCostCount !== 1 ? 's' : ''} missing cost — food costing inaccurate
-              </p>
+            <div className="mt-3 flex items-center gap-1.5 text-amber-400">
+              <AlertTriangle className="w-3 h-3" />
+              <span className="font-body text-[10px]">{missingCostCount} items missing cost</span>
             </div>
           )}
+        </div>
 
-          {/* Reorder alerts */}
-          {urgentItems.length > 0 && stockFilter === 'all' && (
-            <div className="rounded-2xl border border-red-500/30 bg-red-500/5 p-3 space-y-2">
-              <div className="flex items-center gap-2 mb-1">
-                <AlertTriangle className="w-3.5 h-3.5 text-red-400" />
-                <span className="font-body text-[10px] tracking-[0.25em] uppercase text-red-400">
-                  Reorder Alerts{selectedDept !== 'all' ? ` · ${DEPT_LABELS[selectedDept]}` : ''}
-                </span>
+        {/* Out of Stock */}
+        <button onClick={() => setStockFilter(stockFilter === 'out' ? 'all' : 'out')} className="text-left lux-card rounded-2xl p-5 border border-border/50 bg-card/40 backdrop-blur-md relative overflow-hidden group hover:border-red-500/30 transition-colors w-full">
+          <div className={`absolute -right-6 -top-6 w-24 h-24 rounded-full blur-2xl transition-opacity ${outOfStockCount > 0 ? 'bg-red-500 opacity-10 group-hover:opacity-20' : 'bg-foreground/5 opacity-5'}`}></div>
+          <div className="flex justify-between items-start relative z-10">
+            <div>
+              <p className="font-body text-[10px] tracking-[0.2em] uppercase text-muted-foreground mb-1">Out of Stock</p>
+              <div className="flex items-baseline gap-2">
+                <span className={`font-display text-3xl tracking-tight ${outOfStockCount > 0 ? 'text-red-400' : 'text-foreground'}`}>{outOfStockCount}</span>
+                <span className="font-body text-xs text-muted-foreground">items</span>
               </div>
-              {urgentItems.slice(0, 8).map(({ ing, urgency }) => {
-                const burn = burnMap[ing.id];
-                return (
-                  <div key={ing.id} className={`flex items-center justify-between gap-2 p-2.5 rounded-xl ${
-                    urgency.level === 'critical' ? 'bg-red-500/10' : 'bg-amber-500/10'
-                  }`}>
-                    <div className="flex items-center gap-2 flex-1 min-w-0">
-                      <span className={`w-2 h-2 rounded-full shrink-0 ${urgency.level === 'critical' ? 'bg-red-400' : 'bg-amber-400'}`} />
-                      <div className="min-w-0">
-                        <p className="font-body text-xs text-foreground truncate">{ing.name}</p>
-                        <p className="font-body text-[10px] text-muted-foreground">
-                          {ing.current_stock} {ing.unit}
-                          {urgency.dailyRate > 0 && ` · ${urgency.dailyRate.toFixed(1)}/day`}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="text-right shrink-0">
-                      <span className={`font-body text-[10px] px-2 py-0.5 rounded-full border ${
-                        urgency.level === 'critical'
-                          ? 'border-red-500/40 text-red-400 bg-red-500/10'
-                          : 'border-amber-500/40 text-amber-400 bg-amber-500/10'
-                      }`}>
-                        {urgency.daysLeft !== null
-                          ? `${formatDays(urgency.daysLeft)} left`
-                          : ing.current_stock <= 0 ? 'OUT' : 'LOW'}
-                      </span>
-                      {burn && burn.reorderQty > 0 && (
-                        <p className="font-body text-[10px] text-muted-foreground mt-0.5">
-                          Order: {burn.reorderQty} {ing.unit}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-              {urgentItems.length > 8 && (
-                <p className="font-body text-[10px] text-muted-foreground text-center pt-1">
-                  +{urgentItems.length - 8} more · tap "Attention" to see all
-                </p>
-              )}
             </div>
-          )}
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center border ${outOfStockCount > 0 ? 'bg-red-500/10 border-red-500/20' : 'bg-secondary border-border'}`}>
+              <AlertTriangle className={`w-5 h-5 ${outOfStockCount > 0 ? 'text-red-400' : 'text-muted-foreground'}`} />
+            </div>
+          </div>
+          <div className="mt-3 flex items-center gap-1.5 text-muted-foreground">
+            <span className="font-body text-[10px]">Zero quantity available</span>
+          </div>
+        </button>
 
-          {/* Smart thresholds */}
-          {!readOnly && (
-            <div className="rounded-2xl border border-border/60 bg-card/50 p-4 backdrop-blur-sm">
-              <div className="flex items-center gap-2 mb-1">
-                <div className="w-6 h-6 rounded-lg bg-gold/15 flex items-center justify-center">
-                  <Zap className="w-3.5 h-3.5 text-gold" />
-                </div>
-                <span className="font-body text-xs tracking-[0.2em] uppercase text-foreground">Smart Thresholds</span>
+        {/* Needs Attention */}
+        <button onClick={() => setStockFilter(stockFilter === 'low' ? 'all' : 'low')} className="text-left lux-card rounded-2xl p-5 border border-border/50 bg-card/40 backdrop-blur-md relative overflow-hidden group hover:border-amber-500/30 transition-colors w-full">
+          <div className={`absolute -right-6 -top-6 w-24 h-24 rounded-full blur-2xl transition-opacity ${urgentItems.length > 0 ? 'bg-amber-500 opacity-10 group-hover:opacity-20' : 'bg-foreground/5 opacity-5'}`}></div>
+          <div className="flex justify-between items-start relative z-10">
+            <div>
+              <p className="font-body text-[10px] tracking-[0.2em] uppercase text-muted-foreground mb-1">Needs Attention</p>
+              <div className="flex items-baseline gap-2">
+                <span className={`font-display text-3xl tracking-tight ${urgentItems.length > 0 ? 'text-amber-400' : 'text-foreground'}`}>{urgentItems.length}</span>
+                <span className="font-body text-xs text-muted-foreground">items</span>
               </div>
-              <p className="font-body text-[10px] text-muted-foreground mb-3">
-                Auto-set low-stock alerts from actual consumption. Buffer = days of stock to keep.
-              </p>
-              <div className="flex items-center gap-2">
-                <div className="flex gap-1.5">
-                  {[2, 3, 5, 7].map(d => (
-                    <button key={d} onClick={() => setBufferDays(d)}
-                      className={`px-2.5 py-1 rounded-lg font-body text-xs border transition-all ${
-                        bufferDays === d
-                          ? 'bg-gradient-gold text-background border-gold/60 shadow-[0_0_8px_-2px_hsl(var(--gold)/0.4)]'
-                          : 'bg-secondary/50 text-foreground border-border/50 hover:border-gold/30'
-                      }`}>
-                      {d}d
-                    </button>
-                  ))}
-                </div>
-                <button onClick={autoSetThresholds}
-                  className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gold/30 bg-gold/10 text-gold font-body text-xs hover:bg-gold/15 transition-colors">
-                  <Zap className="w-3 h-3" /> Apply
+            </div>
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center border ${urgentItems.length > 0 ? 'bg-amber-500/10 border-amber-500/20' : 'bg-secondary border-border'}`}>
+              <Package className={`w-5 h-5 ${urgentItems.length > 0 ? 'text-amber-400' : 'text-muted-foreground'}`} />
+            </div>
+          </div>
+          <div className="mt-3 flex items-center gap-1.5 text-muted-foreground">
+            <span className="font-body text-[10px]">Below threshold or burning fast</span>
+          </div>
+        </button>
+      </div>
+
+      {/* Main Content Area */}
+      <div className="lux-card rounded-2xl border border-border/50 bg-card/40 backdrop-blur-md overflow-hidden">
+        {/* Navigation & Controls */}
+        <div className="p-4 border-b border-border/50 space-y-4">
+          <div className="flex flex-col lg:flex-row justify-between gap-4">
+            
+            {/* Department Pills */}
+            <div className="flex overflow-x-auto no-scrollbar gap-2 pb-1 lg:pb-0">
+              <button
+                onClick={() => setSelectedDept('all')}
+                className={`whitespace-nowrap px-4 py-2 rounded-xl font-body text-xs border transition-all flex items-center justify-center ${
+                  selectedDept === 'all'
+                    ? 'bg-gradient-gold text-background border-gold/60 shadow-[0_0_12px_-3px_hsl(var(--gold)/0.5)]'
+                    : 'bg-secondary/50 text-foreground border-border/50 hover:border-gold/30'
+                }`}
+              >
+                All Departments
+              </button>
+              {DEPARTMENTS.map(dept => (
+                <button
+                  key={dept}
+                  onClick={() => setSelectedDept(dept)}
+                  className={`whitespace-nowrap px-4 py-2 rounded-xl font-body text-xs border transition-all flex items-center gap-2 ${
+                    selectedDept === dept
+                      ? 'bg-gradient-gold text-background border-gold/60 shadow-[0_0_12px_-3px_hsl(var(--gold)/0.5)]'
+                      : 'bg-secondary/50 text-foreground border-border/50 hover:border-gold/30'
+                  }`}
+                >
+                  <span className="text-sm">{DEPT_ICONS[dept]}</span>
+                  {DEPT_LABELS[dept]}
                 </button>
-              </div>
+              ))}
             </div>
-          )}
 
-          {/* Search + filter */}
-          <div className="flex gap-2">
-            <Input
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              placeholder="Search ingredients..."
-              className="bg-card/50 border-border/60 text-foreground font-body rounded-xl flex-1 backdrop-blur-sm"
-            />
+            {/* View Tabs */}
+            <Tabs defaultValue="stock" className="w-full lg:w-[280px] shrink-0" onValueChange={(v) => {
+              document.querySelectorAll('[id$="-tab-content"]').forEach(el => el.classList.add('hidden'));
+              document.getElementById(`${v}-tab-content`)?.classList.remove('hidden');
+            }}>
+              <TabsList className="w-full bg-secondary/50 border border-border/40 rounded-xl p-1 h-auto">
+                <TabsTrigger value="stock"
+                  className="flex-1 font-body text-xs tracking-wider rounded-lg py-2 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:border data-[state=active]:border-border/60 data-[state=active]:shadow-sm">
+                  <Package className="w-3.5 h-3.5 mr-1.5" /> Stock
+                </TabsTrigger>
+                <TabsTrigger value="consumption"
+                  className="flex-1 font-body text-xs tracking-wider rounded-lg py-2 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:border data-[state=active]:border-border/60 data-[state=active]:shadow-sm">
+                  <BarChart3 className="w-3.5 h-3.5 mr-1.5" /> Usage Log
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
+
+          {/* Filters & Search */}
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex-1 min-w-[200px] relative">
+              <Input
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                placeholder="Search ingredients..."
+                className="w-full pl-9 bg-secondary/30 border-border/60 text-foreground font-body rounded-xl h-10"
+              />
+              <svg className="w-4 h-4 absolute left-3 top-3 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+            </div>
             <Select value={unitFilter} onValueChange={setUnitFilter}>
-              <SelectTrigger className="bg-card/50 border-border/60 text-foreground font-body w-24 rounded-xl">
-                <SelectValue />
+              <SelectTrigger className="bg-secondary/30 border-border/60 text-foreground font-body w-[120px] rounded-xl h-10">
+                <SelectValue placeholder="All units" />
               </SelectTrigger>
               <SelectContent className="bg-card border-border">
                 <SelectItem value="all" className="font-body text-foreground">All units</SelectItem>
@@ -588,162 +544,238 @@ const InventoryDashboard = ({ readOnly = false }: { readOnly?: boolean }) => {
               </SelectContent>
             </Select>
             <button onClick={downloadCSV}
-              className="w-10 h-10 rounded-xl border border-border/60 bg-card/50 flex items-center justify-center text-muted-foreground hover:text-foreground hover:border-gold/30 transition-colors shrink-0">
-              <Download className="w-4 h-4" />
+              className="h-10 px-4 rounded-xl border border-border/60 bg-secondary/30 flex items-center justify-center text-foreground font-body text-xs hover:border-gold/30 hover:text-gold transition-colors shrink-0 gap-2">
+              <Download className="w-4 h-4" /> <span className="hidden sm:inline">Export</span>
             </button>
+            {!readOnly && (
+              <button onClick={autoSetThresholds} title="Auto-set thresholds from consumption data"
+                className="h-10 px-4 rounded-xl border border-gold/30 bg-gold/10 flex items-center justify-center text-gold font-body text-xs hover:bg-gold/20 transition-colors shrink-0 gap-2">
+                <Zap className="w-4 h-4" /> <span className="hidden sm:inline">Smart Thresholds</span>
+              </button>
+            )}
           </div>
+        </div>
 
-          {/* Add + Transfer */}
-          <div className="grid grid-cols-2 gap-2">
-            <button onClick={openNew}
-              className="flex items-center justify-center gap-2 py-2.5 rounded-xl border border-gold/30 bg-gold/10 text-gold font-body text-xs tracking-wider hover:bg-gold/15 transition-colors">
-              <Plus className="w-3.5 h-3.5" /> Add Ingredient
-            </button>
-            <button onClick={() => setShowTransfer(true)}
-              className="flex items-center justify-center gap-2 py-2.5 rounded-xl border border-border/60 bg-card/50 text-foreground font-body text-xs tracking-wider hover:border-gold/30 transition-colors">
-              <ArrowRightLeft className="w-3.5 h-3.5" /> Transfer Stock
-            </button>
-          </div>
+        {/* Content Area */}
+        <div className="p-0 relative min-h-[400px]">
+          <div className="block absolute inset-0 w-full" id="stock-tab-content">
+            
+            {/* Desktop Data Table */}
+            <div className="hidden md:block overflow-x-auto w-full h-full">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="border-b border-border/50 bg-secondary/20">
+                    <th className="py-3 px-5 font-body text-[10px] tracking-[0.15em] uppercase text-muted-foreground font-medium">Ingredient</th>
+                    <th className="py-3 px-5 font-body text-[10px] tracking-[0.15em] uppercase text-muted-foreground font-medium">Department</th>
+                    <th className="py-3 px-5 font-body text-[10px] tracking-[0.15em] uppercase text-muted-foreground font-medium w-48">Stock Level</th>
+                    <th className="py-3 px-5 font-body text-[10px] tracking-[0.15em] uppercase text-muted-foreground font-medium">Status / Action</th>
+                    <th className="py-3 px-5 font-body text-[10px] tracking-[0.15em] uppercase text-muted-foreground font-medium">Unit Cost</th>
+                    <th className="py-3 px-5 w-10"></th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border/40">
+                  {filtered.map((ing: any) => {
+                    const urgency = getUrgency(ing);
+                    const isOut = ing.current_stock <= 0;
+                    const burn = burnMap[ing.id];
+                    const stockPct = computeStockPct(ing, burn);
+                    const dishCount = (usageMap[ing.id] || []).length;
+                    const dept = ing.department || 'kitchen';
+                    const gradient = DEPT_GRADIENT[dept] || DEPT_GRADIENT.kitchen;
 
-          {/* Ingredient list */}
-          <div className="space-y-2">
-            {filtered.map((ing: any) => {
-              const urgency = getUrgency(ing);
-              const isOut = ing.current_stock <= 0;
-              const burn = burnMap[ing.id];
-              const stockPct = computeStockPct(ing, burn);
-              const daysLabel = formatDays(urgency.daysLeft);
-              const dishCount = (usageMap[ing.id] || []).length;
-              const dept = ing.department || 'kitchen';
-              const gradient = DEPT_GRADIENT[dept] || DEPT_GRADIENT.kitchen;
+                    const healthLabel = isOut ? 'Out of Stock' : urgency.level === 'critical' ? 'Critical' : urgency.level === 'warning' ? 'Low Stock' : 'Healthy';
+                    const healthColor = isOut || urgency.level === 'critical' ? 'text-red-400' : urgency.level === 'warning' ? 'text-amber-400' : 'text-emerald-400';
+                    const healthDot = isOut || urgency.level === 'critical' ? 'bg-red-400' : urgency.level === 'warning' ? 'bg-amber-400' : 'bg-emerald-400';
+                    const barColor = isOut || urgency.level === 'critical' ? 'bg-red-500' : urgency.level === 'warning' ? 'bg-amber-500' : 'bg-emerald-500';
 
-              const healthLabel = isOut ? 'Out of Stock'
-                : urgency.level === 'critical' ? 'Critical'
-                : urgency.level === 'warning' ? 'Low Stock'
-                : 'Healthy';
-              const healthColor = isOut || urgency.level === 'critical' ? 'text-red-400'
-                : urgency.level === 'warning' ? 'text-amber-400'
-                : 'text-emerald-400';
-              const healthDot = isOut || urgency.level === 'critical' ? 'bg-red-400'
-                : urgency.level === 'warning' ? 'bg-amber-400'
-                : 'bg-emerald-400';
-              const barColor = isOut || urgency.level === 'critical' ? 'bg-red-500'
-                : urgency.level === 'warning' ? 'bg-amber-500'
-                : 'bg-emerald-500';
-
-              return (
-                <button key={ing.id} onClick={() => openEdit(ing)}
-                  className="w-full text-left rounded-2xl border border-border/50 bg-card/40 p-3 hover:border-gold/40 hover:bg-card/60 transition-all backdrop-blur-sm">
-                  <div className="flex items-center gap-3">
-                    <div className={`w-12 h-12 rounded-full bg-gradient-to-br ${gradient} flex items-center justify-center shrink-0 shadow-sm`}>
-                      <span className="font-body text-xs text-white font-bold">{getInitials(ing.name)}</span>
-                    </div>
-
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between gap-2 mb-0.5">
-                        <p className="font-body text-sm text-foreground truncate">{ing.name}</p>
-                        <span className={`flex items-center gap-1 text-[10px] font-body shrink-0 ${healthColor}`}>
-                          <span className={`w-1.5 h-1.5 rounded-full ${healthDot}`} />
-                          {healthLabel}
-                        </span>
-                      </div>
-
-                      <div className="flex items-center gap-1 mb-1.5">
-                        <span className="font-body text-[10px] text-muted-foreground">
-                          {DEPT_ICONS[dept]} {DEPT_LABELS[dept]}
-                        </span>
-                        {dishCount > 0 && (
-                          <span className="font-body text-[10px] text-muted-foreground">
-                            · {dishCount} {dishCount === 1 ? 'dish' : 'dishes'}
+                    return (
+                      <tr key={ing.id} className="hover:bg-white/[0.02] transition-colors group cursor-pointer" onClick={() => openEdit(ing)}>
+                        <td className="py-3 px-5">
+                          <div className="flex items-center gap-3">
+                            <div className={`w-10 h-10 rounded-full bg-gradient-to-br ${gradient} flex items-center justify-center shrink-0 shadow-sm opacity-90 group-hover:opacity-100 transition-opacity`}>
+                              <span className="font-body text-[11px] text-white font-bold">{getInitials(ing.name)}</span>
+                            </div>
+                            <div>
+                              <p className="font-body text-sm font-medium text-foreground">{ing.name}</p>
+                              {dishCount > 0 && <p className="font-body text-[10px] text-muted-foreground mt-0.5">Used in {dishCount} {dishCount === 1 ? 'dish' : 'dishes'}</p>}
+                            </div>
+                          </div>
+                        </td>
+                        <td className="py-3 px-5">
+                          <span className="font-body text-xs text-muted-foreground flex items-center gap-1.5">
+                            <span className="text-[14px]">{DEPT_ICONS[dept]}</span> {DEPT_LABELS[dept]}
                           </span>
-                        )}
-                      </div>
+                        </td>
+                        <td className="py-3 px-5">
+                          <div className="w-40">
+                            <div className="flex items-center justify-between mb-1.5">
+                              <span className={`font-body text-xs font-medium ${healthColor}`}>{ing.current_stock.toLocaleString()} <span className="text-[10px] opacity-70">{ing.unit}</span></span>
+                              <span className="font-body text-[10px] text-muted-foreground">{stockPct}%</span>
+                            </div>
+                            <div className="w-full h-1.5 rounded-full bg-secondary/70 overflow-hidden">
+                              <div className={`h-full rounded-full transition-all ${barColor}`} style={{ width: `${stockPct}%` }} />
+                            </div>
+                          </div>
+                        </td>
+                        <td className="py-3 px-5">
+                          <div className="flex flex-col items-start gap-1">
+                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border font-body text-[10px] ${
+                              isOut || urgency.level === 'critical' ? 'border-red-500/40 text-red-400 bg-red-500/10' :
+                              urgency.level === 'warning' ? 'border-amber-500/40 text-amber-400 bg-amber-500/10' :
+                              'border-emerald-500/40 text-emerald-400 bg-emerald-500/10'
+                            }`}>
+                              <span className={`w-1.5 h-1.5 rounded-full ${healthDot}`} /> {healthLabel}
+                            </span>
+                            {urgency.daysLeft !== null && <span className="font-body text-[10px] text-muted-foreground ml-1">{formatDays(urgency.daysLeft)} left</span>}
+                          </div>
+                        </td>
+                        <td className="py-3 px-5">
+                          <p className="font-body text-xs text-foreground">{ing.cost_per_unit > 0 ? `₱${ing.cost_per_unit.toFixed(2)}` : '₱—'}</p>
+                          <p className="font-body text-[10px] text-muted-foreground">per {ing.unit}</p>
+                        </td>
+                        <td className="py-3 px-5 text-right">
+                          <div className="w-8 h-8 rounded-full border border-border/50 flex items-center justify-center group-hover:border-gold/40 group-hover:bg-gold/10 transition-all text-muted-foreground group-hover:text-gold">
+                            <ChevronRight className="w-4 h-4" />
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+              {filtered.length === 0 && (
+                <div className="py-16 text-center">
+                  <Package className="w-10 h-10 text-muted-foreground/30 mx-auto mb-3" />
+                  <p className="font-body text-sm text-muted-foreground">No ingredients found</p>
+                </div>
+              )}
+            </div>
 
-                      <div className="flex items-center gap-2">
-                        <div className="flex-1 h-1 rounded-full bg-secondary/70 overflow-hidden">
+            {/* Mobile Card List */}
+            <div className="md:hidden space-y-2 p-4 pb-12">
+              {filtered.map((ing: any) => {
+                const urgency = getUrgency(ing);
+                const isOut = ing.current_stock <= 0;
+                const burn = burnMap[ing.id];
+                const stockPct = computeStockPct(ing, burn);
+                const dishCount = (usageMap[ing.id] || []).length;
+                const dept = ing.department || 'kitchen';
+                const gradient = DEPT_GRADIENT[dept] || DEPT_GRADIENT.kitchen;
+
+                const healthLabel = isOut ? 'Out of Stock' : urgency.level === 'critical' ? 'Critical' : urgency.level === 'warning' ? 'Low Stock' : 'Healthy';
+                const healthColor = isOut || urgency.level === 'critical' ? 'text-red-400' : urgency.level === 'warning' ? 'text-amber-400' : 'text-emerald-400';
+                const healthDot = isOut || urgency.level === 'critical' ? 'bg-red-400' : urgency.level === 'warning' ? 'bg-amber-400' : 'bg-emerald-400';
+                const barColor = isOut || urgency.level === 'critical' ? 'bg-red-500' : urgency.level === 'warning' ? 'bg-amber-500' : 'bg-emerald-500';
+
+                return (
+                  <button key={ing.id} onClick={() => openEdit(ing)}
+                    className="w-full text-left rounded-2xl border border-border/50 bg-card/40 p-4 hover:border-gold/40 hover:bg-card/60 transition-all backdrop-blur-sm group lux-card">
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className={`w-10 h-10 rounded-full bg-gradient-to-br ${gradient} flex items-center justify-center shrink-0 shadow-sm`}>
+                        <span className="font-body text-[11px] text-white font-bold">{getInitials(ing.name)}</span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-2 mb-0.5">
+                          <p className="font-body text-sm font-medium text-foreground truncate">{ing.name}</p>
+                          <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full border font-body text-[9px] shrink-0 ${
+                            isOut || urgency.level === 'critical' ? 'border-red-500/40 text-red-400 bg-red-500/10' :
+                            urgency.level === 'warning' ? 'border-amber-500/40 text-amber-400 bg-amber-500/10' :
+                            'border-emerald-500/40 text-emerald-400 bg-emerald-500/10'
+                          }`}>
+                            <span className={`w-1 h-1 rounded-full ${healthDot}`} /> {healthLabel}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+                          <span className="flex items-center gap-1"><span className="text-[12px]">{DEPT_ICONS[dept]}</span> {DEPT_LABELS[dept]}</span>
+                          {dishCount > 0 && <span>· {dishCount} {dishCount === 1 ? 'dish' : 'dishes'}</span>}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="bg-secondary/30 rounded-xl p-3 space-y-2 border border-border/30">
+                      <div className="flex justify-between items-end">
+                        <div>
+                          <p className="font-body text-xs text-foreground font-medium">{ing.current_stock.toLocaleString()} <span className="text-[10px] text-muted-foreground">{ing.unit}</span></p>
+                          {urgency.daysLeft !== null && <p className="font-body text-[9px] text-muted-foreground">{formatDays(urgency.daysLeft)} left</p>}
+                        </div>
+                        <div className="text-right">
+                          <p className="font-body text-xs text-foreground">{ing.cost_per_unit > 0 ? `₱${ing.cost_per_unit.toFixed(2)}` : '₱—'}</p>
+                          <p className="font-body text-[9px] text-muted-foreground">per {ing.unit}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 pt-1">
+                        <div className="flex-1 h-1.5 rounded-full bg-secondary/70 overflow-hidden">
                           <div className={`h-full rounded-full transition-all ${barColor}`} style={{ width: `${stockPct}%` }} />
                         </div>
-                        <span className="font-body text-[10px] text-muted-foreground shrink-0">{stockPct}%</span>
+                        <span className="font-body text-[9px] text-muted-foreground shrink-0 w-6 text-right">{stockPct}%</span>
                       </div>
                     </div>
+                  </button>
+                );
+              })}
+              {filtered.length === 0 && (
+                <div className="py-12 text-center">
+                  <Package className="w-8 h-8 text-muted-foreground/30 mx-auto mb-2" />
+                  <p className="font-body text-sm text-muted-foreground">No ingredients found</p>
+                </div>
+              )}
+            </div>
+          </div>
 
-                    <div className="text-right shrink-0 flex items-center gap-1.5">
-                      <div>
-                        <p className="font-body text-sm text-foreground">
-                          {ing.current_stock.toLocaleString()} <span className="text-[10px] text-muted-foreground">{ing.unit}</span>
-                        </p>
-                        <p className="font-body text-[10px] text-muted-foreground">
-                          {ing.cost_per_unit > 0 ? `₱${ing.cost_per_unit}/${ing.unit}` : '₱—'}
-                        </p>
-                      </div>
-                      <ChevronRight className="w-4 h-4 text-muted-foreground/50" />
-                    </div>
-                  </div>
+          <div className="hidden absolute inset-0 w-full p-4 h-full overflow-y-auto" id="consumption-tab-content">
+            <div className="flex gap-2 mb-4">
+              {[7, 14, 30].map(d => (
+                <button key={d} onClick={() => setLogDays(d)}
+                  className={`flex-1 md:flex-none md:w-24 py-2 rounded-xl border font-body text-xs tracking-wider transition-all ${
+                    logDays === d
+                      ? 'bg-gradient-gold text-background border-gold/60 shadow-[0_0_12px_-3px_hsl(var(--gold)/0.5)]'
+                      : 'bg-card/50 border-border/50 text-foreground hover:border-gold/30'
+                  }`}>
+                  {d} Days
                 </button>
-              );
-            })}
-          </div>
-
-          {filtered.length === 0 && (
-            <div className="py-12 text-center">
-              <Package className="w-8 h-8 text-muted-foreground/30 mx-auto mb-2" />
-              <p className="font-body text-sm text-muted-foreground">No ingredients found</p>
+              ))}
             </div>
-          )}
-        </TabsContent>
 
-        {/* CONSUMPTION LOG TAB */}
-        <TabsContent value="consumption" className="space-y-3">
-          <div className="flex gap-2">
-            {[7, 14, 30].map(d => (
-              <button key={d} onClick={() => setLogDays(d)}
-                className={`flex-1 py-2 rounded-xl border font-body text-xs tracking-wider transition-all ${
-                  logDays === d
-                    ? 'bg-gradient-gold text-background border-gold/60 shadow-[0_0_8px_-2px_hsl(var(--gold)/0.4)]'
-                    : 'bg-card/50 border-border/50 text-foreground hover:border-gold/30'
-                }`}>
-                {d}d
-              </button>
-            ))}
-          </div>
-
-          {Object.keys(logsByDate).length === 0 ? (
-            <div className="py-12 text-center">
-              <BarChart3 className="w-8 h-8 text-muted-foreground/30 mx-auto mb-2" />
-              <p className="font-body text-sm text-muted-foreground">No consumption data yet</p>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {Object.entries(logsByDate)
-                .sort(([a], [b]) => b.localeCompare(a))
-                .map(([date, ings]) => (
-                  <div key={date} className="rounded-2xl border border-border/50 bg-card/40 p-3 backdrop-blur-sm">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Calendar className="w-3.5 h-3.5 text-gold/60" />
-                      <span className="font-body text-xs tracking-wider text-foreground">
-                        {format(new Date(date), 'MMM d, yyyy')}
-                      </span>
+            {Object.keys(logsByDate).length === 0 ? (
+              <div className="py-16 text-center">
+                <BarChart3 className="w-10 h-10 text-muted-foreground/30 mx-auto mb-3" />
+                <p className="font-body text-sm text-muted-foreground">No consumption data found for this period</p>
+              </div>
+            ) : (
+              <div className="space-y-4 pb-12">
+                {Object.entries(logsByDate)
+                  .sort(([a], [b]) => b.localeCompare(a))
+                  .map(([date, ings]) => (
+                    <div key={date} className="rounded-2xl border border-border/50 bg-card/30 overflow-hidden lux-card">
+                      <div className="bg-secondary/40 px-4 py-3 border-b border-border/50 flex items-center gap-2">
+                        <Calendar className="w-4 h-4 text-gold" />
+                        <span className="font-body text-sm text-foreground font-medium">
+                          {format(new Date(date), 'MMMM d, yyyy')}
+                        </span>
+                      </div>
+                      <div className="divide-y divide-border/30">
+                        {Object.values(ings)
+                          .sort((a, b) => b.total - a.total)
+                          .map((ing, idx) => (
+                            <div key={idx} className="flex justify-between items-center px-4 py-3 hover:bg-white/[0.02]">
+                              <div className="flex items-center gap-3">
+                                <div className="w-2 h-2 rounded-full bg-gold/50"></div>
+                                <span className="font-body text-sm text-foreground/90">{ing.name}</span>
+                              </div>
+                              <span className="font-body text-sm font-medium text-amber-400">-{ing.total.toLocaleString()} <span className="text-xs text-muted-foreground">{ing.unit}</span></span>
+                            </div>
+                          ))}
+                      </div>
                     </div>
-                    <div className="space-y-1.5">
-                      {Object.values(ings)
-                        .sort((a, b) => b.total - a.total)
-                        .map((ing, idx) => (
-                          <div key={idx} className="flex justify-between items-center">
-                            <span className="font-body text-xs text-foreground/80">{ing.name}</span>
-                            <span className="font-body text-xs text-muted-foreground">-{ing.total} {ing.unit}</span>
-                          </div>
-                        ))}
-                    </div>
-                  </div>
-                ))}
-            </div>
-          )}
-        </TabsContent>
-      </Tabs>
+                  ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
 
       {/* Edit / New Ingredient Dialog */}
       <Dialog open={!!editIng} onOpenChange={() => setEditIng(null)}>
-        <DialogContent className="bg-card border-border/60 max-w-sm max-h-[88vh] overflow-y-auto">
+        <DialogContent className="bg-card/95 backdrop-blur-xl border-border/50 max-w-sm max-h-[88vh] overflow-y-auto rounded-3xl p-6 shadow-2xl lux-card">
           <DialogHeader>
             <DialogTitle className="font-body text-sm tracking-[0.2em] uppercase text-foreground text-center">
               {editIng === 'new' ? 'Add Ingredient' : 'Edit Ingredient'}
@@ -751,257 +783,192 @@ const InventoryDashboard = ({ readOnly = false }: { readOnly?: boolean }) => {
           </DialogHeader>
 
           {/* Circular avatar with camera */}
-          <div className="flex justify-center pb-2">
-            <div className="relative">
+          <div className="flex justify-center pb-2 mt-4">
+            <div className="relative group cursor-pointer">
               <div className={`w-24 h-24 rounded-full bg-gradient-to-br ${
                 DEPT_GRADIENT[form.department] || DEPT_GRADIENT.kitchen
-              } flex items-center justify-center border-4 border-card shadow-lg`}>
+              } flex items-center justify-center border-4 border-card shadow-lg transition-transform group-hover:scale-105`}>
                 <span className="font-body text-xl text-white font-bold">
                   {form.name ? getInitials(form.name) : '?'}
                 </span>
               </div>
-              <div className="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-card border border-border/60 flex items-center justify-center shadow-sm">
-                <Camera className="w-3.5 h-3.5 text-muted-foreground" />
+              <div className="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-card border border-border/60 flex items-center justify-center shadow-sm text-muted-foreground group-hover:text-gold group-hover:border-gold/40 transition-colors">
+                <Camera className="w-3.5 h-3.5" />
               </div>
             </div>
           </div>
 
-          <div className="space-y-4">
-            {/* Basic Information section */}
+          <div className="space-y-5 mt-4">
             <div>
-              <p className="font-body text-[10px] tracking-[0.25em] uppercase text-muted-foreground mb-3">Basic Information</p>
-              <div className="space-y-3">
+              <p className="font-body text-[10px] tracking-[0.25em] uppercase text-gold mb-3 flex items-center gap-2">
+                <span className="w-4 h-[1px] bg-gold/50"></span> Basic Information
+              </p>
+              <div className="space-y-4">
                 <div>
                   <label className="font-body text-[10px] text-muted-foreground">Ingredient Name</label>
                   <Input
                     value={form.name}
                     onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-                    placeholder="Ingredient name"
-                    className="bg-secondary/50 border-border/60 text-foreground font-body rounded-xl mt-1"
+                    placeholder="e.g. Fresh Salmon"
+                    className="bg-secondary/40 border-border/50 text-foreground font-body rounded-xl mt-1.5 h-11 focus-visible:ring-gold/30"
                   />
                 </div>
 
-                {/* Department */}
                 <div>
                   <label className="font-body text-[10px] text-muted-foreground mb-2 block">Department</label>
-                  <div className="flex flex-wrap gap-1.5">
+                  <div className="grid grid-cols-2 gap-2">
                     {DEPARTMENTS.map(dept => (
                       <button
                         key={dept}
                         type="button"
                         onClick={() => setForm(f => ({ ...f, department: dept }))}
-                        className={`px-2.5 py-1.5 rounded-lg font-body text-xs border transition-all flex items-center gap-1 ${
+                        className={`px-3 py-2 rounded-xl font-body text-xs border transition-all flex items-center gap-2 ${
                           form.department === dept
-                            ? 'bg-gradient-gold text-background border-gold/60 shadow-[0_0_8px_-2px_hsl(var(--gold)/0.4)]'
-                            : 'bg-secondary/50 text-foreground border-border/50 hover:border-gold/30'
+                            ? 'bg-gradient-gold text-background border-gold/60 shadow-[0_0_12px_-3px_hsl(var(--gold)/0.4)]'
+                            : 'bg-secondary/40 text-foreground border-border/50 hover:border-gold/30'
                         }`}
                       >
-                        {DEPT_ICONS[dept]} {DEPT_LABELS[dept]}
+                        <span className="text-[14px]">{DEPT_ICONS[dept]}</span> {DEPT_LABELS[dept]}
                       </button>
                     ))}
                   </div>
                 </div>
-
-                {/* Unit + Cost side-by-side */}
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="font-body text-[10px] text-muted-foreground mb-1 block">Unit</label>
-                    <Select value={form.unit} onValueChange={v => setForm(f => ({ ...f, unit: v }))}>
-                      <SelectTrigger className="bg-secondary/50 border-border/60 text-foreground font-body rounded-xl">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent className="bg-card border-border">
-                        {UNITS.map(u => (
-                          <SelectItem key={u} value={u} className="font-body text-foreground">{u}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <label className="font-body text-[10px] text-muted-foreground">Cost per unit (₱)</label>
-                    <Input
-                      value={form.cost_per_unit}
-                      onChange={e => setForm(f => ({ ...f, cost_per_unit: e.target.value }))}
-                      type="number"
-                      className="bg-secondary/50 border-border/60 text-foreground font-body rounded-xl mt-1"
-                    />
-                  </div>
-                </div>
-
-                {/* Stock + Threshold */}
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="font-body text-[10px] text-muted-foreground">Current Stock</label>
-                    <Input
-                      value={form.current_stock}
-                      onChange={e => setForm(f => ({ ...f, current_stock: e.target.value }))}
-                      type="number"
-                      className="bg-secondary/50 border-border/60 text-foreground font-body rounded-xl mt-1"
-                    />
-                  </div>
-                  <div>
-                    <label className="font-body text-[10px] text-muted-foreground">Low Stock Threshold</label>
-                    <Input
-                      value={form.low_stock_threshold}
-                      onChange={e => setForm(f => ({ ...f, low_stock_threshold: e.target.value }))}
-                      type="number"
-                      className="bg-secondary/50 border-border/60 text-foreground font-body rounded-xl mt-1"
-                    />
-                  </div>
-                </div>
               </div>
             </div>
 
-            {/* Usage & Performance section */}
-            {editIngUsage.length > 0 && (
-              <div>
-                <div className="flex items-center justify-between mb-3">
-                  <p className="font-body text-[10px] tracking-[0.25em] uppercase text-muted-foreground">Usage &amp; Performance</p>
-                </div>
-                <div className="rounded-2xl border border-border/60 bg-secondary/30 p-3">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-2">
-                      <UtensilsCrossed className="w-3.5 h-3.5 text-gold/70" />
-                      <span className="font-body text-xs text-foreground">
-                        Used in {editIngUsage.length} {editIngUsage.length === 1 ? 'dish' : 'dishes'}
-                      </span>
-                    </div>
-                    <button className="font-body text-[10px] text-gold hover:text-gold/80 transition-colors">View All</button>
-                  </div>
-                  <div className="space-y-2">
-                    {editIngUsage
-                      .sort((a, b) => a.dishName.localeCompare(b.dishName))
-                      .map((u, idx) => (
-                        <div key={idx} className="flex items-center gap-2.5">
-                          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-slate-600 to-slate-800 flex items-center justify-center shrink-0">
-                            <span className="font-body text-[9px] text-white font-bold">
-                              {u.dishName.split(' ').slice(0, 2).map((w: string) => w[0]).join('').toUpperCase()}
-                            </span>
-                          </div>
-                          <span className="font-body text-xs text-foreground flex-1 truncate">{u.dishName}</span>
-                          <span className="font-body text-[10px] text-muted-foreground shrink-0">
-                            {u.quantity} {editIng?.unit || ''} per order
-                          </span>
-                        </div>
-                      ))}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Inventory Insights */}
-            {editIng && editIng !== 'new' && burnMap[editIng.id] && (() => {
-              const burn = burnMap[editIng.id];
-              const depletionDate = burn.daysRemaining !== null
-                ? addDays(new Date(), Math.round(burn.daysRemaining))
-                : null;
-              const reorderDate = burn.reorderQty > 0
-                ? addDays(new Date(), Math.max(0, Math.round((burn.daysRemaining ?? 0) - 3)))
-                : null;
-              const avgDailyDisplay = burn.dailyRate >= 1000
-                ? `${(burn.dailyRate / 1000).toFixed(1)} k${editIng.unit}`
-                : `${Math.round(burn.dailyRate)} ${editIng.unit}`;
-              const reorderDisplay = burn.reorderQty >= 1000
-                ? `${(burn.reorderQty / 1000).toFixed(1)} k${editIng.unit}`
-                : `${burn.reorderQty} ${editIng.unit}`;
-              return (
+            <div>
+              <p className="font-body text-[10px] tracking-[0.25em] uppercase text-gold mb-3 flex items-center gap-2 mt-2">
+                <span className="w-4 h-[1px] bg-gold/50"></span> Metrics & Stock
+              </p>
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <p className="font-body text-[10px] tracking-[0.25em] uppercase text-muted-foreground mb-3">Inventory Insights</p>
-                  <div className="rounded-2xl border border-border/60 bg-secondary/30 p-3">
-                    <div className="grid grid-cols-3 gap-2 text-center">
-                      <div className="p-2 rounded-xl bg-card/50">
-                        <p className="font-body text-[9px] text-muted-foreground mb-1">Est. Depletion</p>
-                        <p className="font-display text-sm text-foreground leading-tight">
-                          {burn.daysRemaining !== null ? formatDays(burn.daysRemaining) : '—'}
-                        </p>
-                        {depletionDate && (
-                          <p className="font-body text-[9px] text-muted-foreground mt-0.5">
-                            {format(depletionDate, 'MMM d, yyyy')}
-                          </p>
-                        )}
-                      </div>
-                      <div className="p-2 rounded-xl bg-card/50">
-                        <p className="font-body text-[9px] text-muted-foreground mb-1">Avg. Daily Use</p>
-                        <p className="font-display text-sm text-foreground leading-tight">{avgDailyDisplay}</p>
-                      </div>
-                      <div className="p-2 rounded-xl bg-card/50">
-                        <p className="font-body text-[9px] text-muted-foreground mb-1">Suggested Reorder</p>
-                        <p className="font-display text-sm text-foreground leading-tight">
-                          {burn.reorderQty > 0 ? reorderDisplay : '—'}
-                        </p>
-                        {reorderDate && burn.reorderQty > 0 && (
-                          <p className="font-body text-[9px] text-muted-foreground mt-0.5">
-                            By {format(reorderDate, 'MMM d')}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
+                  <label className="font-body text-[10px] text-muted-foreground">Current Stock</label>
+                  <Input
+                    value={form.current_stock}
+                    onChange={e => setForm(f => ({ ...f, current_stock: e.target.value }))}
+                    type="number"
+                    placeholder="0.0"
+                    className="bg-secondary/40 border-border/50 text-foreground font-body rounded-xl mt-1.5 h-11 focus-visible:ring-gold/30"
+                  />
                 </div>
-              );
-            })()}
-
-            {/* Actions */}
-            <div className="space-y-2 pt-1">
-              <button
-                onClick={save}
-                className="w-full py-3 rounded-xl bg-gradient-gold text-background font-body text-sm tracking-wider shadow-[0_0_18px_-4px_hsl(var(--gold)/0.5)] hover:shadow-[0_0_24px_-4px_hsl(var(--gold)/0.6)] transition-all">
-                {editIng === 'new' ? 'Add Ingredient' : 'Save Changes'}
-              </button>
-              {editIng && editIng !== 'new' && (
-                <button
-                  onClick={() => deleteIng(editIng.id)}
-                  className="w-full py-2.5 rounded-xl border border-red-500/40 bg-red-500/10 text-red-400 font-body text-sm tracking-wider hover:bg-red-500/15 transition-colors flex items-center justify-center gap-2">
-                  <Trash2 className="w-3.5 h-3.5" /> Delete Ingredient
-                </button>
-              )}
+                <div>
+                  <label className="font-body text-[10px] text-muted-foreground">Unit</label>
+                  <Select value={form.unit} onValueChange={v => setForm(f => ({ ...f, unit: v }))}>
+                    <SelectTrigger className="bg-secondary/40 border-border/50 text-foreground font-body rounded-xl mt-1.5 h-11 focus-visible:ring-gold/30">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-card border-border">
+                      {UNITS.map(u => (
+                        <SelectItem key={u} value={u} className="font-body">{u}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <label className="font-body text-[10px] text-muted-foreground">Low Stock Alert</label>
+                  <Input
+                    value={form.low_stock_threshold}
+                    onChange={e => setForm(f => ({ ...f, low_stock_threshold: e.target.value }))}
+                    type="number"
+                    placeholder="0.0"
+                    className="bg-secondary/40 border-border/50 text-foreground font-body rounded-xl mt-1.5 h-11 focus-visible:ring-gold/30"
+                  />
+                </div>
+                <div>
+                  <label className="font-body text-[10px] text-muted-foreground">Cost per Unit (₱)</label>
+                  <Input
+                    value={form.cost_per_unit}
+                    onChange={e => setForm(f => ({ ...f, cost_per_unit: e.target.value }))}
+                    type="number"
+                    placeholder="0.00"
+                    className="bg-secondary/40 border-border/50 text-foreground font-body rounded-xl mt-1.5 h-11 focus-visible:ring-gold/30"
+                  />
+                </div>
+              </div>
             </div>
+          </div>
+
+          <div className="flex gap-3 pt-6 mt-2 border-t border-border/30">
+            {editIng !== 'new' && (
+              <button
+                onClick={() => deleteIng(editIng.id)}
+                className="w-12 h-12 shrink-0 rounded-xl border border-red-500/40 bg-red-500/10 text-red-400 flex items-center justify-center hover:bg-red-500/20 transition-colors"
+                title="Delete Ingredient"
+              >
+                <Trash2 className="w-5 h-5" />
+              </button>
+            )}
+            <button
+              onClick={save}
+              className="flex-1 h-12 rounded-xl bg-gradient-gold text-background font-body text-sm tracking-wider shadow-[0_0_18px_-4px_hsl(var(--gold)/0.5)] hover:shadow-[0_0_24px_-4px_hsl(var(--gold)/0.6)] transition-all">
+              {editIng === 'new' ? 'Create Ingredient' : 'Save Changes'}
+            </button>
           </div>
         </DialogContent>
       </Dialog>
 
-      {/* Transfer dialog */}
+      {/* Transfer Stock Dialog */}
       <Dialog open={showTransfer} onOpenChange={setShowTransfer}>
-        <DialogContent className="bg-card border-border/60 max-w-sm">
+        <DialogContent className="bg-card/95 backdrop-blur-xl border-border/50 max-w-sm rounded-3xl p-6 shadow-2xl lux-card">
           <DialogHeader>
-            <DialogTitle className="font-body text-sm tracking-[0.2em] uppercase text-foreground">Transfer Stock</DialogTitle>
+            <DialogTitle className="font-body text-sm tracking-[0.2em] uppercase text-foreground text-center flex justify-center items-center gap-2">
+              <div className="w-8 h-8 rounded-full bg-gold/10 flex items-center justify-center border border-gold/20">
+                <ArrowRightLeft className="w-4 h-4 text-gold" />
+              </div>
+              Transfer Stock
+            </DialogTitle>
           </DialogHeader>
-          <div className="space-y-3">
-            <div>
-              <Label className="font-body text-[10px] tracking-[0.2em] uppercase text-muted-foreground">From Department</Label>
-              <Select value={transfer.fromDept} onValueChange={v => setTransfer(t => ({ ...t, fromDept: v, ingredientId: '' }))}>
-                <SelectTrigger className="bg-secondary/50 border-border/60 text-foreground font-body rounded-xl mt-1">
-                  <SelectValue placeholder="Select..." />
-                </SelectTrigger>
-                <SelectContent className="bg-card border-border">
-                  {DEPARTMENTS.map(d => (
-                    <SelectItem key={d} value={d} className="font-body text-foreground">
-                      {DEPT_ICONS[d]} {DEPT_LABELS[d]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+
+          <p className="font-body text-xs text-muted-foreground text-center mt-2 mb-6">
+            Move inventory between departments (e.g., from Main Storage to Bar)
+          </p>
+
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-3 relative">
+              <div>
+                <Label className="font-body text-[10px] tracking-[0.2em] uppercase text-muted-foreground">From</Label>
+                <Select value={transfer.fromDept} onValueChange={v => setTransfer(t => ({ ...t, fromDept: v, ingredientId: '' }))}>
+                  <SelectTrigger className="bg-secondary/40 border-border/50 text-foreground font-body rounded-xl mt-1.5 h-11 focus-visible:ring-gold/30">
+                    <SelectValue placeholder="Source" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-card border-border">
+                    {DEPARTMENTS.map(d => (
+                      <SelectItem key={d} value={d} className="font-body text-xs">
+                        <span className="flex items-center gap-2"><span className="text-[14px]">{DEPT_ICONS[d]}</span> {DEPT_LABELS[d]}</span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div className="absolute left-1/2 top-1/2 -translate-x-1/2 translate-y-1 w-8 h-8 rounded-full bg-card border border-border/50 flex items-center justify-center z-10 text-muted-foreground shadow-sm">
+                <ArrowRightLeft className="w-3.5 h-3.5" />
+              </div>
+
+              <div>
+                <Label className="font-body text-[10px] tracking-[0.2em] uppercase text-muted-foreground">To</Label>
+                <Select value={transfer.toDept} onValueChange={v => setTransfer(t => ({ ...t, toDept: v }))}>
+                  <SelectTrigger className="bg-secondary/40 border-border/50 text-foreground font-body rounded-xl mt-1.5 h-11 pl-6 focus-visible:ring-gold/30">
+                    <SelectValue placeholder="Dest" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-card border-border">
+                    {DEPARTMENTS.map(d => (
+                      <SelectItem key={d} value={d} className="font-body text-xs">
+                        <span className="flex items-center gap-2"><span className="text-[14px]">{DEPT_ICONS[d]}</span> {DEPT_LABELS[d]}</span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
+
             <div>
-              <Label className="font-body text-[10px] tracking-[0.2em] uppercase text-muted-foreground">To Department</Label>
-              <Select value={transfer.toDept} onValueChange={v => setTransfer(t => ({ ...t, toDept: v }))}>
-                <SelectTrigger className="bg-secondary/50 border-border/60 text-foreground font-body rounded-xl mt-1">
-                  <SelectValue placeholder="Select..." />
-                </SelectTrigger>
-                <SelectContent className="bg-card border-border">
-                  {DEPARTMENTS.filter(d => d !== transfer.fromDept).map(d => (
-                    <SelectItem key={d} value={d} className="font-body text-foreground">
-                      {DEPT_ICONS[d]} {DEPT_LABELS[d]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label className="font-body text-[10px] tracking-[0.2em] uppercase text-muted-foreground">Ingredient</Label>
+              <Label className="font-body text-[10px] tracking-[0.2em] uppercase text-muted-foreground flex items-center gap-2 mt-2">
+                <span className="w-3 h-[1px] bg-gold/50"></span> Item to Transfer
+              </Label>
               <Select value={transfer.ingredientId} onValueChange={v => setTransfer(t => ({ ...t, ingredientId: v }))}>
-                <SelectTrigger className="bg-secondary/50 border-border/60 text-foreground font-body rounded-xl mt-1">
-                  <SelectValue placeholder="Select..." />
+                <SelectTrigger className="bg-secondary/40 border-border/50 text-foreground font-body rounded-xl mt-1.5 h-11 focus-visible:ring-gold/30" disabled={!transfer.fromDept}>
+                  <SelectValue placeholder={transfer.fromDept ? "Select ingredient..." : "Select source first"} />
                 </SelectTrigger>
                 <SelectContent className="bg-card border-border max-h-48">
                   {transferIngredients.map((i: any) => (
@@ -1012,29 +979,33 @@ const InventoryDashboard = ({ readOnly = false }: { readOnly?: boolean }) => {
                 </SelectContent>
               </Select>
             </div>
-            <div>
-              <Label className="font-body text-[10px] tracking-[0.2em] uppercase text-muted-foreground">Quantity</Label>
-              <Input
-                value={transfer.quantity}
-                onChange={e => setTransfer(t => ({ ...t, quantity: e.target.value }))}
-                type="number"
-                placeholder="Amount to transfer"
-                className="bg-secondary/50 border-border/60 text-foreground font-body rounded-xl mt-1"
-              />
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="font-body text-[10px] tracking-[0.2em] uppercase text-muted-foreground">Quantity</Label>
+                <Input
+                  value={transfer.quantity}
+                  onChange={e => setTransfer(t => ({ ...t, quantity: e.target.value }))}
+                  type="number"
+                  placeholder="0"
+                  className="bg-secondary/40 border-border/50 text-foreground font-body rounded-xl mt-1.5 h-11 focus-visible:ring-gold/30"
+                />
+              </div>
+              <div>
+                <Label className="font-body text-[10px] tracking-[0.2em] uppercase text-muted-foreground">Reason (Optional)</Label>
+                <Input
+                  value={transfer.reason}
+                  onChange={e => setTransfer(t => ({ ...t, reason: e.target.value }))}
+                  placeholder="e.g. Restock"
+                  className="bg-secondary/40 border-border/50 text-foreground font-body rounded-xl mt-1.5 h-11 focus-visible:ring-gold/30"
+                />
+              </div>
             </div>
-            <div>
-              <Label className="font-body text-[10px] tracking-[0.2em] uppercase text-muted-foreground">Reason (optional)</Label>
-              <Input
-                value={transfer.reason}
-                onChange={e => setTransfer(t => ({ ...t, reason: e.target.value }))}
-                placeholder="e.g. Bar ran out"
-                className="bg-secondary/50 border-border/60 text-foreground font-body rounded-xl mt-1"
-              />
-            </div>
+
             <button
               onClick={executeTransfer}
-              className="w-full py-3 rounded-xl bg-gradient-gold text-background font-body text-sm tracking-wider shadow-[0_0_18px_-4px_hsl(var(--gold)/0.5)] hover:shadow-[0_0_24px_-4px_hsl(var(--gold)/0.6)] transition-all flex items-center justify-center gap-2">
-              <ArrowRightLeft className="w-4 h-4" /> Transfer Stock
+              className="w-full h-12 mt-4 rounded-xl bg-gradient-gold text-background font-body text-sm tracking-wider shadow-[0_0_18px_-4px_hsl(var(--gold)/0.5)] hover:shadow-[0_0_24px_-4px_hsl(var(--gold)/0.6)] transition-all flex items-center justify-center gap-2">
+              <ArrowRightLeft className="w-4 h-4" /> Execute Transfer
             </button>
           </div>
         </DialogContent>
