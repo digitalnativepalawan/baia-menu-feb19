@@ -4,7 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, AlertTriangle, Download, Package, BarChart3, Calendar, ArrowRightLeft, Zap, ChevronRight, UtensilsCrossed, Camera, Trash2 } from 'lucide-react';
+import { Plus, AlertTriangle, Download, Package, BarChart3, Calendar, ArrowRightLeft, Zap, ChevronRight, UtensilsCrossed, Camera, Trash2, Wine, Palmtree, Bed } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
@@ -22,11 +22,11 @@ const DEPT_LABELS: Record<string, string> = {
   housekeeping: 'Housekeeping',
 };
 
-const DEPT_ICONS: Record<string, string> = {
-  kitchen: 'ðŸ³',
-  bar: 'ðŸ¸',
-  gardens: 'ðŸŒ¿',
-  housekeeping: 'ðŸ¨',
+const DEPT_ICONS: Record<string, React.ReactNode> = {
+  kitchen: <UtensilsCrossed className="w-4 h-4" />,
+  bar: <Wine className="w-4 h-4" />,
+  gardens: <Palmtree className="w-4 h-4" />,
+  housekeeping: <Bed className="w-4 h-4" />,
 };
 
 const DEPT_GRADIENT: Record<string, string> = {
@@ -476,7 +476,7 @@ const InventoryDashboard = ({ readOnly = false }: { readOnly?: boolean }) => {
           <div className="flex flex-col lg:flex-row justify-between gap-4">
             
             {/* Department Pills */}
-            <div className="flex overflow-x-auto no-scrollbar gap-2 pb-1 lg:pb-0">
+            <div className="flex flex-wrap gap-2 pb-2 lg:pb-0">
               <button
                 onClick={() => setSelectedDept('all')}
                 className={`whitespace-nowrap px-4 py-2 rounded-xl font-body text-xs border transition-all flex items-center justify-center ${
@@ -556,12 +556,11 @@ const InventoryDashboard = ({ readOnly = false }: { readOnly?: boolean }) => {
           </div>
         </div>
 
-        {/* Content Area */}
         <div className="p-0 relative min-h-[400px]">
-          <div className="block absolute inset-0 w-full" id="stock-tab-content">
+          <div className="block w-full" id="stock-tab-content">
             
             {/* Desktop Data Table */}
-            <div className="hidden md:block overflow-x-auto w-full h-full">
+            <div className="hidden md:block w-full">
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="border-b border-border/50 bg-secondary/20">
@@ -721,7 +720,7 @@ const InventoryDashboard = ({ readOnly = false }: { readOnly?: boolean }) => {
             </div>
           </div>
 
-          <div className="hidden absolute inset-0 w-full p-4 h-full overflow-y-auto" id="consumption-tab-content">
+          <div className="hidden w-full p-4" id="consumption-tab-content">
             <div className="flex gap-2 mb-4">
               {[7, 14, 30].map(d => (
                 <button key={d} onClick={() => setLogDays(d)}
