@@ -393,18 +393,6 @@ const InventoryDashboard = ({ readOnly = false }: { readOnly?: boolean }) => {
           <h2 className="font-serif-display text-2xl sm:text-3xl text-foreground">Inventory Management</h2>
           <p className="font-body text-sm text-muted-foreground mt-1">Real-time stock tracking and automated thresholds</p>
         </div>
-        {!readOnly && (
-          <div className="flex items-center gap-3 w-full md:w-auto">
-            <button onClick={() => setShowTransfer(true)}
-              className="flex-1 md:flex-none flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl border border-border/60 bg-card/50 text-foreground font-body text-xs tracking-wider hover:border-gold/30 hover:bg-card transition-all lux-card">
-              <ArrowRightLeft className="w-4 h-4" /> Transfer
-            </button>
-            <button onClick={openNew}
-              className="flex-1 md:flex-none flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl border border-gold/30 bg-gold/10 text-gold font-body text-xs tracking-wider hover:bg-gold/15 transition-colors shadow-[0_0_12px_-3px_hsl(var(--gold)/0.3)]">
-              <Plus className="w-4 h-4" /> Add Item
-            </button>
-          </div>
-        )}
       </div>
 
       {/* KPI Cards */}
@@ -551,10 +539,20 @@ const InventoryDashboard = ({ readOnly = false }: { readOnly?: boolean }) => {
               <Download className="w-4 h-4" /> <span className="hidden sm:inline">Export</span>
             </button>
             {!readOnly && (
-              <button onClick={autoSetThresholds} title="Auto-set thresholds from consumption data"
-                className="h-10 px-4 rounded-xl border border-gold/30 bg-gold/10 flex items-center justify-center text-gold font-body text-xs hover:bg-gold/20 transition-colors shrink-0 gap-2">
-                <Zap className="w-4 h-4" /> <span className="hidden sm:inline">Smart Thresholds</span>
-              </button>
+              <>
+                <button onClick={autoSetThresholds} title="Auto-set thresholds from consumption data"
+                  className="h-10 px-4 rounded-xl border border-gold/30 bg-gold/10 flex items-center justify-center text-gold font-body text-xs hover:bg-gold/20 transition-colors shrink-0 gap-2">
+                  <Zap className="w-4 h-4" /> <span className="hidden sm:inline">Smart Thresholds</span>
+                </button>
+                <button onClick={() => setShowTransfer(true)}
+                  className="h-10 px-4 rounded-xl border border-border/60 bg-card/50 text-foreground font-body text-xs hover:border-gold/30 hover:bg-card transition-colors shrink-0 gap-2 flex items-center justify-center">
+                  <ArrowRightLeft className="w-4 h-4" /> <span className="hidden sm:inline">Transfer</span>
+                </button>
+                <button onClick={openNew}
+                  className="h-10 px-4 rounded-xl border border-gold/30 bg-gold/10 text-gold font-body text-xs hover:bg-gold/15 transition-colors shrink-0 gap-2 flex items-center justify-center shadow-[0_0_12px_-3px_hsl(var(--gold)/0.3)]">
+                  <Plus className="w-4 h-4" /> Add Item
+                </button>
+              </>
             )}
           </div>
         </div>
@@ -563,8 +561,8 @@ const InventoryDashboard = ({ readOnly = false }: { readOnly?: boolean }) => {
           <div className="block w-full" id="stock-tab-content">
             
             {/* Desktop Data Table */}
-            <div className="hidden md:block w-full">
-              <table className="w-full text-left border-collapse">
+            <div className="hidden md:block w-full overflow-x-auto pb-4">
+              <table className="w-full text-left border-collapse min-w-[800px]">
                 <thead>
                   <tr className="border-b border-border/50 bg-secondary/20">
                     <th className="py-3 px-5 font-body text-[10px] tracking-[0.15em] uppercase text-muted-foreground font-medium">Ingredient</th>
