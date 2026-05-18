@@ -117,7 +117,7 @@ const GuestPortal = () => {
   const { data: profile } = useResortProfile();
   const qc = useQueryClient();
   const [session, setSession] = useState<GuestPortalSession | null>(getPortalSession);
-  const [view, setView] = useState<'dashboard' | 'menu-food' | 'menu-drinks' | 'experiences' | 'request' | 'message' | 'tours' | 'transport' | 'rentals' | 'review' | 'bill' | 'orders' | 'requests' | 'hotel-info' | 'reservation'>('dashboard');
+  const [view, setView] = useState<'dashboard' | 'menu-food' | 'menu-drinks' | 'experiences' | 'request' | 'message' | 'tours' | 'transport' | 'rentals' | 'review' | 'bill' | 'orders' | 'requests' | 'hotel-info' | 'reservation' | 'local-guide' | 'settings'>('dashboard');
 
   // Login state
   const [roomName, setRoomName] = useState('');
@@ -270,8 +270,8 @@ const GuestPortal = () => {
             <SidebarLink icon={<Palmtree className="w-5 h-5" />} label="Experiences" active={view === 'experiences' || view === 'tours'} onClick={() => setView('experiences')} />
             <SidebarLink icon={<CreditCard className="w-5 h-5" />} label="Bills & Payments" active={view === 'bill'} onClick={() => setView('bill')} />
             <SidebarLink icon={<MessageSquare className="w-5 h-5" />} label="Messages" badge={notifCount > 0 ? notifCount : undefined} active={view === 'requests'} onClick={() => setView('requests')} />
-            <SidebarLink icon={<MapIcon className="w-5 h-5" />} label="Local Guide" />
-            <SidebarLink icon={<Settings className="w-5 h-5" />} label="Settings" />
+            <SidebarLink icon={<MapIcon className="w-5 h-5" />} label="Local Guide" active={view === 'local-guide'} onClick={() => setView('local-guide')} />
+            <SidebarLink icon={<Settings className="w-5 h-5" />} label="Settings" active={view === 'settings'} onClick={() => setView('settings')} />
           </nav>
         </div>
         <div className="mt-auto p-6">
@@ -478,10 +478,10 @@ const GuestPortal = () => {
               </div>
 
               {/* ── Activity Timeline (Desktop only) ── */}
-              <div className="hidden md:block lux-card p-5 mb-8">
+              <div className="lux-card p-5 mb-8">
                  <div className="flex justify-between items-center mb-6">
                     <h3 className="font-body text-sm text-foreground">Activity Timeline</h3>
-                    <button className="text-[11px] text-gold hover:underline">View All</button>
+                    <button className="text-[11px] text-gold hover:underline" onClick={() => setView('reservation')}>View All</button>
                  </div>
                  <div className="flex justify-between relative px-4">
                     <div className="absolute top-4 left-10 right-10 h-0.5 bg-border -z-10"></div>
@@ -503,7 +503,7 @@ const GuestPortal = () => {
                        </div>
                     </div>
                     <div className="text-right">
-                       <Button className="bg-gold text-background hover:bg-gold/90 font-display text-xs mb-1 h-8">Book Now</Button>
+                       <Button className="bg-gold text-background hover:bg-gold/90 font-display text-xs mb-1 h-8" onClick={() => setView('experiences')}>Book Now</Button>
                        <p className="font-body text-[10px] text-muted-foreground">Limited availability</p>
                     </div>
                  </div>
@@ -608,6 +608,32 @@ const GuestPortal = () => {
         {view === 'bill' && <BillView session={session} />}
         {view === 'hotel-info' && <HotelInfoView profile={profile} />}
         {view === 'reservation' && <ReservationDetailsView session={session} booking={bookingDetails} onBill={() => setView('bill')} /> }
+        {view === 'local-guide' && (
+          <div className="space-y-4 max-w-2xl mx-auto">
+            <h2 className="font-display text-2xl text-foreground">Local Guide</h2>
+            <div className="lux-card p-12 text-center text-muted-foreground border-dashed border-border/50">
+              <MapIcon className="w-16 h-16 mx-auto mb-6 text-gold opacity-50" />
+              <h3 className="font-display text-lg text-foreground mb-2">Discover the Area</h3>
+              <p className="font-body text-sm max-w-md mx-auto leading-relaxed">Explore curated local attractions, hidden beaches, and immersive cultural experiences tailored exclusively for our guests.</p>
+              <div className="mt-8 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-secondary text-xs font-medium text-muted-foreground">
+                <Clock className="w-3.5 h-3.5" /> Coming soon
+              </div>
+            </div>
+          </div>
+        )}
+        {view === 'settings' && (
+          <div className="space-y-4 max-w-2xl mx-auto">
+            <h2 className="font-display text-2xl text-foreground">Settings</h2>
+            <div className="lux-card p-12 text-center text-muted-foreground border-dashed border-border/50">
+              <Settings className="w-16 h-16 mx-auto mb-6 text-teal-400 opacity-50" />
+              <h3 className="font-display text-lg text-foreground mb-2">Account Preferences</h3>
+              <p className="font-body text-sm max-w-md mx-auto leading-relaxed">Manage your communication preferences, update notification settings, and personalize your stay details.</p>
+              <div className="mt-8 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-secondary text-xs font-medium text-muted-foreground">
+                <Clock className="w-3.5 h-3.5" /> Coming soon
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Hermes AI Assistant — available on all guest pages */}
         <HermesChatWidget guestSession={session} />
