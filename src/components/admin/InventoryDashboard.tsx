@@ -1,1017 +1,2131 @@
-import { useState, useMemo } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { useResortProfile } from '@/hooks/useResortProfile';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, AlertTriangle, Download, Package, BarChart3, Calendar, ArrowRightLeft, Zap, ChevronRight, UtensilsCrossed, Camera, Trash2, Wine, Palmtree, Bed } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { toast } from 'sonner';
-import { format, subDays, differenceInDays, addDays } from 'date-fns';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
+import { toast } from 'sonner';
+import { LogOut, UtensilsCrossed, MapPin, Car, Bike, MessageSquare, Star, Receipt, ArrowLeft, ChevronRight, ClipboardList, Calendar, Clock, Users, StickyNote, CheckCircle2, Utensils, Palmtree, Truck, CreditCard, FileText, Loader2, ConciergeBell, AlertTriangle, Bell, Info, Phone, Mail, MapPinned, Moon, Home, Settings, HeadphonesIcon, Map as MapIcon, Plus, User, Globe } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { setGuestSession } from '@/hooks/useGuestSession';
+import { HermesChatWidget } from '@/components/HermesChatWidget';
 
-const UNITS = ['grams', 'ml', 'pcs', 'kg', 'liters', 'bottles', 'cans', 'slices'];
-const DEPARTMENTS = ['kitchen', 'bar', 'gardens', 'housekeeping', 'dry_goods'] as const;
-type Department = typeof DEPARTMENTS[number];
+const GUEST_PORTAL_KEY = 'guest_portal_session';
 
-const DEPT_LABELS: Record<string, string> = {
-  kitchen: 'Kitchen',
-  bar: 'Bar',
-  gardens: 'Gardens',
-  housekeeping: 'Housekeeping',
-  dry_goods: 'Dry Goods',
-};
-
-const DEPT_ICONS: Record<string, React.ReactNode> = {
-  kitchen: <UtensilsCrossed className="w-4 h-4" />,
-  bar: <Wine className="w-4 h-4" />,
-  gardens: <Palmtree className="w-4 h-4" />,
-  housekeeping: <Bed className="w-4 h-4" />,
-  dry_goods: <Package className="w-4 h-4" />,
-};
-
-const DEPT_GRADIENT: Record<string, string> = {
-  kitchen: 'from-orange-500 to-orange-700',
-  bar: 'from-purple-500 to-purple-700',
-  gardens: 'from-emerald-500 to-emerald-700',
-  housekeeping: 'from-blue-500 to-blue-700',
-  dry_goods: 'from-amber-700 to-amber-900',
-};
-
-const BUFFER_DAYS_DEFAULT = 3;
-
-interface BurnInfo {
-  dailyRate: number;
-  daysRemaining: number | null;
-  suggestedThreshold: number;
-  reorderQty: number;
+interface GuestPortalSession {
+  booking_id: string;
+  room_id: string;
+  room_name: string;
+  guest_name: string;
+  check_out: string;
+  expires: number;
 }
 
-const computeStockPct = (ing: any, burn: any): number => {
-  if (ing.current_stock <= 0) return 0;
-  if (burn?.daysRemaining !== null && burn?.daysRemaining !== undefined && burn.dailyRate > 0) {
-    return Math.min(100, Math.max(5, Math.round((burn.daysRemaining / 14) * 100)));
-  }
-  if (ing.low_stock_threshold > 0) {
-    const ratio = ing.current_stock / ing.low_stock_threshold;
-    if (ratio < 1) return Math.round(ratio * 25);
-    if (ratio < 2) return Math.round(25 + (ratio - 1) * 25);
-    return Math.min(100, Math.round(50 + (ratio - 2) * 10));
-  }
-  return 75;
+const getPortalSession = (): GuestPortalSession | null => {
+  try {
+    const s = sessionStorage.getItem(GUEST_PORTAL_KEY);
+    if (!s) return null;
+    const parsed: GuestPortalSession = JSON.parse(s);
+    if (parsed.expires < Date.now()) { sessionStorage.removeItem(GUEST_PORTAL_KEY); return null; }
+    return parsed;
+  } catch { sessionStorage.removeItem(GUEST_PORTAL_KEY); return null; }
 };
 
-const getInitials = (name: string) =>
-  name.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase();
+const SidebarLink = ({ icon, label, active, badge, onClick }: { icon: React.ReactNode, label: string, active?: boolean, badge?: number, onClick?: () => void }) => (
+  <button onClick={onClick} className={`w-full flex items-center justify-between px-4 py-3 rounded-xl transition-colors ${active ? 'bg-gold/10 text-gold' : 'text-muted-foreground hover:bg-secondary hover:text-foreground'}`}>
+    <div className="flex items-center gap-3">
+      {icon}
+      <span className="font-body text-sm font-medium">{label}</span>
+    </div>
+    {badge ? <span className="bg-destructive text-destructive-foreground text-[10px] font-bold px-1.5 py-0.5 rounded-full">{badge}</span> : null}
+  </button>
+);
 
-const InventoryDashboard = ({ readOnly = false }: { readOnly?: boolean }) => {
+const BottomNavLink = ({ icon, label, active, badge, onClick }: { icon: React.ReactNode, label: string, active?: boolean, badge?: number, onClick?: () => void }) => (
+  <button onClick={onClick} className={`relative flex flex-col items-center gap-1 p-2 ${active ? 'text-gold' : 'text-muted-foreground hover:text-foreground'}`}>
+    {icon}
+    <span className="font-body text-[10px]">{label}</span>
+    {badge ? <span className="absolute top-1 right-1 bg-destructive text-destructive-foreground text-[8px] font-bold px-1 rounded-full">{badge}</span> : null}
+  </button>
+);
+
+const QuickActionTile = ({ icon, label, onClick }: { icon: React.ReactNode, label: string, onClick: () => void }) => (
+  <button onClick={onClick} className="lux-card p-4 flex flex-col items-center justify-center gap-3 hover:border-gold/40 transition-colors h-[100px]">
+    <div className="w-10 h-10 rounded-full bg-background flex items-center justify-center shadow-sm">
+       {icon}
+    </div>
+    <span className="font-body text-[11px] text-foreground text-center leading-tight">{label}</span>
+  </button>
+);
+
+const DetailRow = ({ icon, label, value }: { icon: React.ReactNode, label: string, value: string }) => (
+  <div className="flex justify-between items-center">
+     <div className="flex items-center gap-2">
+        <span className="text-muted-foreground w-4 h-4 flex items-center justify-center">{icon}</span>
+        <span className="font-body text-xs text-muted-foreground">{label}</span>
+     </div>
+     <span className="font-body text-xs text-foreground font-medium">{value}</span>
+  </div>
+);
+
+const ServiceRow = ({ icon, title, time, status, statusColor }: { icon: React.ReactNode, title: string, time: string, status: string, statusColor: string }) => (
+  <div className="flex justify-between items-center">
+     <div className="flex items-center gap-3">
+        <span className="text-gold w-5 h-5 flex items-center justify-center">{icon}</span>
+        <div>
+           <p className="font-body text-xs text-foreground">{title}</p>
+           <p className="font-body text-[10px] text-muted-foreground">{time}</p>
+        </div>
+     </div>
+     <span className={`font-body text-[10px] ${statusColor}`}>{status}</span>
+  </div>
+);
+
+const MessageRow = ({ avatar, avatarColor, name, time, preview }: { avatar: string, avatarColor: string, name: string, time: string, preview: string }) => (
+  <div className="flex items-start gap-3">
+     <div className={`w-8 h-8 rounded-full flex flex-shrink-0 items-center justify-center font-display text-xs ${avatarColor}`}>
+        {avatar}
+     </div>
+     <div className="min-w-0 flex-1">
+        <div className="flex justify-between items-center mb-0.5">
+           <p className="font-body text-xs text-foreground font-medium">{name}</p>
+           <p className="font-body text-[10px] text-muted-foreground">{time}</p>
+        </div>
+        <p className="font-body text-[10px] text-muted-foreground truncate">{preview}</p>
+     </div>
+  </div>
+);
+
+const TimelineStep = ({ icon, date, title, time, active }: { icon: React.ReactNode, date: string, title: string, time: string, active: boolean }) => (
+  <div className="flex flex-col items-center flex-1 text-center relative">
+     <div className={`w-8 h-8 rounded-full flex items-center justify-center mb-2 z-10 ${active ? 'bg-card border-2 border-accent' : 'bg-secondary border border-border'}`}>
+        <span className={active ? 'text-accent w-4 h-4' : 'text-muted-foreground w-4 h-4'}>{icon}</span>
+     </div>
+     <p className="font-body text-[9px] uppercase tracking-wider text-muted-foreground mb-1">{date}</p>
+     <p className="font-body text-[10px] text-foreground font-medium leading-tight max-w-[80px]">{title}</p>
+     <p className="font-body text-[9px] text-muted-foreground mt-1">{time}</p>
+  </div>
+);
+
+const GuestPortal = () => {
+  const navigate = useNavigate();
+  const { data: profile } = useResortProfile();
   const qc = useQueryClient();
-  const [selectedDept, setSelectedDept] = useState<Department | 'all'>('all');
+  const [session, setSession] = useState<GuestPortalSession | null>(getPortalSession);
+  const [view, setView] = useState<'dashboard' | 'menu-food' | 'menu-drinks' | 'experiences' | 'request' | 'message' | 'tours' | 'transport' | 'rentals' | 'review' | 'bill' | 'orders' | 'requests' | 'hotel-info' | 'reservation' | 'local-guide' | 'settings'>('dashboard');
 
-  const { data: ingredients = [] } = useQuery({
-    queryKey: ['ingredients'],
+  // Login state
+  const [roomName, setRoomName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const { data: allUnits = [] } = useQuery({
+    queryKey: ['active-units-portal'],
     queryFn: async () => {
-      const { data } = await supabase.from('ingredients').select('*').order('name');
+      const { data } = await supabase.from('units').select('id, unit_name').eq('active', true).order('unit_name');
+      return data || [];
+    },
+    enabled: !session,
+  });
+
+  const handleLogin = async () => {
+    if (!roomName || !lastName.trim()) return;
+    setLoading(true);
+    try {
+      const unit = allUnits.find(u => u.unit_name === roomName);
+      if (!unit) { toast.error('Room not found'); setLoading(false); return; }
+
+      const { data: opsUnit } = await supabase.from('resort_ops_units').select('id').ilike('name', roomName.trim()).maybeSingle();
+      if (!opsUnit) { toast.error('Room not found'); setLoading(false); return; }
+
+      const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' });
+      const { data: bookings } = await supabase
+        .from('resort_ops_bookings')
+        .select('id, check_in, check_out, guest_login_count, resort_ops_guests(full_name)')
+        .eq('unit_id', opsUnit.id)
+        .lte('check_in', today)
+        .gte('check_out', today);
+
+      if (!bookings || bookings.length === 0) { toast.error('No active booking found for this room'); setLoading(false); return; }
+
+      const enteredLast = lastName.trim().toLowerCase();
+      const booking = bookings.find((b: any) => {
+        const fullName = b.resort_ops_guests?.full_name || '';
+        const bLast = fullName.split(' ').pop()?.toLowerCase() || '';
+        return bLast === enteredLast;
+      });
+
+      if (!booking) {
+        toast.error('Last name does not match our records');
+        setLoading(false);
+        return;
+      }
+      const guestName = (booking as any).resort_ops_guests?.full_name || '';
+
+      await (supabase.from('resort_ops_bookings') as any).update({
+        last_guest_login: new Date().toISOString(),
+        guest_login_count: (booking as any).guest_login_count ? (booking as any).guest_login_count + 1 : 1,
+      }).eq('id', booking.id);
+
+      const portalSession: GuestPortalSession = {
+        booking_id: booking.id,
+        room_id: unit.id,
+        room_name: unit.unit_name,
+        guest_name: guestName,
+        check_out: booking.check_out,
+        expires: new Date(booking.check_out + 'T23:59:59').getTime(),
+      };
+      sessionStorage.setItem(GUEST_PORTAL_KEY, JSON.stringify(portalSession));
+      setSession(portalSession);
+      toast.success(`Welcome, ${guestName.split(' ')[0]}!`);
+    } catch { toast.error('Login failed'); }
+    setLoading(false);
+  };
+
+  const logout = () => {
+    sessionStorage.removeItem(GUEST_PORTAL_KEY);
+    setSession(null);
+    setView('dashboard');
+  };
+
+  // Booking details for Upcoming Stay card (adults, children, check_in)
+  const { data: bookingDetails } = useQuery({
+    queryKey: ['guest-portal-booking', session?.booking_id],
+    queryFn: async () => {
+      if (!session) return null;
+      const { data } = await supabase
+        .from('resort_ops_bookings')
+        .select('check_in, check_out, adults, children, platform')
+        .eq('id', session.booking_id)
+        .maybeSingle();
+      return data;
+    },
+    enabled: !!session,
+  });
+
+  // Notification badge: open requests + active orders for this booking
+  const { data: notifCount = 0 } = useQuery({
+    queryKey: ['guest-portal-notifs', session?.booking_id],
+    queryFn: async () => {
+      if (!session) return 0;
+      const [reqs, orders] = await Promise.all([
+        supabase.from('guest_requests').select('id', { count: 'exact', head: true })
+          .eq('booking_id', session.booking_id).in('status', ['pending', 'in_progress']),
+        supabase.from('orders').select('id', { count: 'exact', head: true })
+          .eq('room_id', session.room_id).in('status', ['New', 'Preparing', 'Ready']),
+      ]);
+      return (reqs.count || 0) + (orders.count || 0);
+    },
+    enabled: !!session,
+    refetchInterval: 15000,
+  });
+
+  if (!session) {
+    return (
+      <div className="min-h-screen bg-navy-texture flex flex-col items-center justify-center px-6">
+        {profile?.logo_url && <img src={profile.logo_url} alt="Logo" style={{ width: profile.logo_size || 96, height: profile.logo_size || 96 }} className="object-contain mb-4" />}
+        <h1 className="font-display text-2xl tracking-wider text-foreground mb-1">Guest Portal</h1>
+        <p className="font-body text-sm text-muted-foreground mb-8">Access your room services</p>
+        <div className="w-full max-w-xs space-y-3">
+          <Select onValueChange={setRoomName} value={roomName}>
+            <SelectTrigger className="bg-secondary border-border text-foreground font-body text-center h-12">
+              <SelectValue placeholder="Select your room" />
+            </SelectTrigger>
+            <SelectContent className="bg-card border-border">
+              {allUnits.map(u => <SelectItem key={u.id} value={u.unit_name} className="text-foreground font-body">{u.unit_name}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Input value={lastName} onChange={e => setLastName(e.target.value)} placeholder="Your last name" className="bg-secondary border-border text-foreground font-body text-center text-lg h-12" onKeyDown={e => e.key === 'Enter' && handleLogin()} />
+          <Button onClick={handleLogin} disabled={loading || !roomName || !lastName.trim()} className="w-full font-display text-sm tracking-wider h-12">
+            {loading ? 'Verifying...' : 'Enter Portal'}
+          </Button>
+          <button onClick={() => navigate('/')} className="w-full font-body text-xs text-muted-foreground hover:text-foreground py-2 transition-colors">Back to Home</button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-background flex">
+      {/* ── DESKTOP SIDEBAR ── */}
+      <aside className="hidden md:flex w-[260px] flex-col bg-card border-r border-border h-screen sticky top-0 shrink-0 z-10">
+        <div className="p-6">
+          <div className="flex items-center gap-3 mb-8">
+            {profile?.logo_url ? <img src={profile.logo_url} alt="Logo" className="w-10 h-10 object-contain" /> : <Palmtree className="w-8 h-8 text-gold" />}
+            <div>
+              <p className="font-serif-display text-lg leading-none text-foreground">{profile?.resort_name ? profile.resort_name.split(' ')[0] : 'BAIA'}</p>
+              <p className="font-body text-[10px] tracking-widest text-gold uppercase">{profile?.resort_name ? profile.resort_name.split(' ').slice(1).join(' ') : 'Boutique'}</p>
+            </div>
+          </div>
+          <nav className="space-y-1">
+            <SidebarLink icon={<Home className="w-5 h-5" />} label="Dashboard" active={view === 'dashboard'} onClick={() => setView('dashboard')} />
+            <SidebarLink icon={<Calendar className="w-5 h-5" />} label="My Stay" active={view === 'reservation'} onClick={() => setView('reservation')} />
+            <SidebarLink icon={<ConciergeBell className="w-5 h-5" />} label="Services" active={view === 'request'} onClick={() => setView('request')} />
+            <SidebarLink icon={<Utensils className="w-5 h-5" />} label="Dining" onClick={() => { setGuestSession({ room_id: session.room_id, room_name: session.room_name, guest_name: session.guest_name, booking_id: session.booking_id }); navigate('/menu?mode=guest-order&dept=kitchen'); }} />
+            <SidebarLink icon={<Palmtree className="w-5 h-5" />} label="Experiences" active={view === 'experiences' || view === 'tours'} onClick={() => setView('experiences')} />
+            <SidebarLink icon={<CreditCard className="w-5 h-5" />} label="Bills & Payments" active={view === 'bill'} onClick={() => setView('bill')} />
+            <SidebarLink icon={<MessageSquare className="w-5 h-5" />} label="Messages" badge={notifCount > 0 ? notifCount : undefined} active={view === 'requests'} onClick={() => setView('requests')} />
+            <SidebarLink icon={<MapIcon className="w-5 h-5" />} label="Local Guide" active={view === 'local-guide'} onClick={() => setView('local-guide')} />
+            <SidebarLink icon={<Settings className="w-5 h-5" />} label="Settings" active={view === 'settings'} onClick={() => setView('settings')} />
+          </nav>
+        </div>
+        <div className="mt-auto p-6">
+          <div className="lux-card p-4 text-center">
+            <HeadphonesIcon className="w-6 h-6 mx-auto text-gold mb-2" />
+            <p className="font-display text-sm text-gold">Need Help?</p>
+            <p className="font-body text-[11px] text-muted-foreground mb-3">We're here for you 24/7</p>
+            <Button variant="outline" className="w-full text-xs border-gold/40 text-gold hover:bg-gold/10 hover:border-gold h-9" onClick={() => setView('message')}>Contact Us</Button>
+          </div>
+        </div>
+      </aside>
+
+      {/* ── MAIN CONTENT AREA ── */}
+      <main className="flex-1 relative min-h-screen pb-24 md:pb-8 overflow-y-auto">
+        {/* Ambient gradient layer */}
+        <div
+          aria-hidden
+          className="pointer-events-none fixed inset-0 -z-10"
+          style={{
+            background:
+              'radial-gradient(ellipse 90% 55% at 50% -10%, hsl(var(--gold) / 0.12), transparent 60%),' +
+              'radial-gradient(ellipse 70% 50% at 100% 100%, hsl(var(--teal) / 0.10), transparent 70%),' +
+              'linear-gradient(180deg, hsl(var(--background)) 0%, hsl(var(--navy-deep)) 100%)',
+          }}
+        />
+        <div className="max-w-6xl mx-auto px-4 sm:px-8 py-6 sm:py-8">
+          {view !== 'dashboard' ? (
+            <button onClick={() => setView('dashboard')} className="flex items-center gap-1 text-muted-foreground hover:text-foreground font-body text-sm mb-4">
+              <ArrowLeft className="w-4 h-4" /> Back
+            </button>
+          ) : (
+            <>
+              {/* ── Top header (Desktop & Mobile) ── */}
+              <header className="flex items-start justify-between gap-3 mb-6 sm:mb-8">
+                <div className="flex items-start gap-3 min-w-0 md:hidden">
+                  {profile?.logo_url && (
+                    <img src={profile.logo_url} alt={profile?.resort_name || 'Logo'} className="w-12 h-12 object-contain shrink-0" />
+                  )}
+                  <div className="min-w-0">
+                    <h1 className="font-serif-display text-2xl text-foreground leading-tight truncate">
+                      Hello, {session.guest_name.split(' ')[0]}! <span>👋</span>
+                    </h1>
+                    <p className="font-body text-xs text-muted-foreground mt-0.5">
+                      Welcome to <span className="text-gold">{profile?.resort_name || 'BAIA Boutique'}</span>
+                    </p>
+                  </div>
+                </div>
+                
+                <div className="hidden md:block min-w-0">
+                    <h1 className="font-serif-display text-3xl text-foreground leading-tight">Guest Portal</h1>
+                    <p className="font-body text-sm text-muted-foreground mt-1">Welcome back, {session.guest_name.split(' ')[0]} 👋</p>
+                </div>
+
+                <div className="flex items-center gap-3 shrink-0">
+                  <button className="hidden md:flex items-center gap-1 font-body text-xs text-muted-foreground hover:text-foreground px-2 py-1 rounded-full luxury-glass">
+                     <Globe className="w-3.5 h-3.5" /> English <ChevronRight className="w-3 h-3 rotate-90" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setView('requests')}
+                    aria-label="Notifications"
+                    className="relative w-10 h-10 rounded-full luxury-glass flex items-center justify-center hover:border-gold/40 transition-colors"
+                  >
+                    <Bell className="w-4 h-4 text-foreground" />
+                    {notifCount > 0 && (
+                      <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold flex items-center justify-center">
+                        {notifCount > 9 ? '9+' : notifCount}
+                      </span>
+                    )}
+                  </button>
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-gold/40 to-teal/40 border border-gold/40 flex items-center justify-center relative">
+                    <span className="font-serif-display text-sm text-foreground">
+                      {session.guest_name.split(' ').map(p => p[0]).slice(0, 2).join('').toUpperCase()}
+                    </span>
+                    <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 rounded-full border border-background"></span>
+                  </div>
+                </div>
+              </header>
+
+              {/* ── Desktop Layout: Hero Image + Upcoming Stay Card ── */}
+              <div className="flex flex-col xl:flex-row gap-6 mb-8">
+                 {/* Hero Image / Gradient panel */}
+                 <div className="flex-1 relative h-48 sm:h-64 xl:h-auto xl:min-h-[280px] rounded-2xl overflow-hidden shadow-lg border border-border/50">
+                    <img src="https://images.unsplash.com/photo-1499793983690-e29da59ef1c2?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80" alt="Resort View" className="absolute inset-0 w-full h-full object-cover" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-background/90 via-background/20 to-transparent" />
+                 </div>
+                 
+                 {/* Upcoming Stay Card */}
+                 <div className="w-full xl:w-[380px] lux-card p-6 flex flex-col justify-between relative overflow-hidden">
+                    {/* Decorative blurred blob */}
+                    <div className="absolute -top-12 -right-12 w-32 h-32 bg-gold/10 rounded-full blur-3xl pointer-events-none" />
+                    <div className="relative z-10">
+                        <div className="flex justify-between items-start mb-2">
+                           <span className="bg-gold/10 text-gold font-body text-[10px] tracking-wider uppercase px-2 py-1 rounded-full border border-gold/20">Upcoming Stay</span>
+                        </div>
+                        <h2 className="font-serif-display text-3xl text-foreground leading-tight mb-1">{session.room_name}</h2>
+                        <p className="font-body text-xs text-muted-foreground flex items-center gap-1.5">
+                            <MapPin className="w-3.5 h-3.5" /> {bookingDetails?.platform || 'Ocean View'}
+                        </p>
+
+                        <div className="grid grid-cols-2 gap-4 mt-6">
+                            <div>
+                                <p className="font-body text-[10px] tracking-widest uppercase text-muted-foreground flex items-center gap-1.5 mb-1">
+                                    <Calendar className="w-3 h-3" /> Check-In
+                                </p>
+                                <p className="font-serif-display text-lg text-foreground">
+                                    {bookingDetails?.check_in
+                                    ? new Date(bookingDetails.check_in + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                                    : '—'}
+                                </p>
+                                <p className="font-body text-[11px] text-muted-foreground">3:00 PM</p>
+                            </div>
+                            <div>
+                                <p className="font-body text-[10px] tracking-widest uppercase text-muted-foreground flex items-center gap-1.5 mb-1">
+                                    <Calendar className="w-3 h-3" /> Check-Out
+                                </p>
+                                <p className="font-serif-display text-lg text-foreground">
+                                    {new Date(session.check_out + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                </p>
+                                <p className="font-body text-[11px] text-muted-foreground">11:00 AM</p>
+                            </div>
+                        </div>
+
+                        <div className="flex items-center gap-4 mt-6 font-body text-xs text-foreground">
+                            <span className="flex items-center gap-1.5"><Users className="w-4 h-4 text-muted-foreground" /> {bookingDetails?.adults ?? 2} Adults, {bookingDetails?.children ?? 0} Children</span>
+                            {bookingDetails?.check_in && (() => {
+                                const nights = Math.max(1, Math.round((new Date(session.check_out).getTime() - new Date(bookingDetails.check_in).getTime()) / 86400000));
+                                return <span className="flex items-center gap-1.5"><Moon className="w-4 h-4 text-muted-foreground" /> {nights} Night{nights !== 1 ? 's' : ''}</span>;
+                            })()}
+                        </div>
+                    </div>
+                    
+                    <button
+                        type="button"
+                        onClick={() => setView('reservation')}
+                        className="mt-6 w-full flex items-center justify-between font-body text-sm text-gold border border-gold/40 rounded-xl px-4 py-3 hover:bg-gold/5 transition-colors relative z-10"
+                    >
+                        View Reservation <ChevronRight className="w-4 h-4" />
+                    </button>
+                 </div>
+              </div>
+
+              {/* ── Quick Actions (Desktop only) ── */}
+              <div className="hidden md:block mb-8">
+                 <div className="flex justify-between items-center mb-4">
+                    <h3 className="font-body text-sm text-foreground">Quick Actions</h3>
+                    <button className="text-xs text-gold hover:underline">View All</button>
+                 </div>
+                 <div className="grid grid-cols-6 gap-4">
+                    <QuickActionTile icon={<Bell className="w-5 h-5 text-blue-400" />} label="Request Service" onClick={() => setView('request')} />
+                    <QuickActionTile icon={<UtensilsCrossed className="w-5 h-5 text-emerald-400" />} label="Book Dining" onClick={() => { setGuestSession({ room_id: session.room_id, room_name: session.room_name, guest_name: session.guest_name, booking_id: session.booking_id }); navigate('/menu?mode=guest-order&dept=kitchen'); }} />
+                    <QuickActionTile icon={<Palmtree className="w-5 h-5 text-purple-400" />} label="Spa Booking" onClick={() => setView('request')} />
+                    <QuickActionTile icon={<Bike className="w-5 h-5 text-amber-400" />} label="Activities & Tours" onClick={() => setView('tours')} />
+                    <QuickActionTile icon={<Settings className="w-5 h-5 text-teal-400" />} label="Room Preferences" onClick={() => setView('request')} />
+                    <QuickActionTile icon={<Clock className="w-5 h-5 text-cyan-400" />} label="Early Check-in" onClick={() => setView('request')} />
+                 </div>
+              </div>
+
+              {/* ── 3-Column Detail Cards (Desktop only) ── */}
+              <div className="hidden md:grid grid-cols-3 gap-6 mb-8">
+                 {/* Stay Details */}
+                 <div className="lux-card p-5">
+                    <div className="flex justify-between items-center mb-4">
+                       <h3 className="font-body text-sm text-foreground">Stay Details</h3>
+                       <button className="text-[11px] text-gold hover:underline" onClick={() => setView('reservation')}>View All</button>
+                    </div>
+                    <div className="space-y-4">
+                       <DetailRow icon={<ClipboardList />} label="Reservation ID" value={`#${session.booking_id.substring(0, 4)}`} />
+                       <DetailRow icon={<Home />} label="Room Type" value={session.room_name} />
+                       <DetailRow icon={<Utensils />} label="Plan" value="Bed & Breakfast" />
+                       <DetailRow icon={<Users />} label="Guests" value={`${bookingDetails?.adults ?? 2} Adults`} />
+                       <DetailRow icon={<Star className="text-gold" />} label="Special Request" value="None" />
+                    </div>
+                    <Button variant="outline" className="w-full mt-5 border-border hover:border-gold hover:text-gold" onClick={() => setView('reservation')}>Manage Booking</Button>
+                 </div>
+
+                 {/* Services */}
+                 <div className="lux-card p-5">
+                    <div className="flex justify-between items-center mb-4">
+                       <h3 className="font-body text-sm text-foreground">Services</h3>
+                       <button className="text-[11px] text-gold hover:underline" onClick={() => setView('requests')}>View All</button>
+                    </div>
+                    <div className="space-y-4">
+                       <ServiceRow icon={<Car />} title="Airport Transfer" time="May 24, 12:00 PM" status="Confirmed" statusColor="text-green-400" />
+                       <ServiceRow icon={<UtensilsCrossed />} title="Romantic Dinner" time="May 25, 7:00 PM" status="Confirmed" statusColor="text-green-400" />
+                       <ServiceRow icon={<Palmtree />} title="Spa Treatment" time="May 26, 2:00 PM" status="Scheduled" statusColor="text-blue-400" />
+                       <ServiceRow icon={<Clock />} title="Late Check-out" time="May 28, 2:00 PM" status="Requested" statusColor="text-amber-400" />
+                    </div>
+                    <Button variant="outline" className="w-full mt-5 border-border hover:border-gold hover:text-gold" onClick={() => setView('request')}>Request New Service</Button>
+                 </div>
+
+                 {/* Messages */}
+                 <div className="lux-card p-5">
+                    <div className="flex justify-between items-center mb-4">
+                       <h3 className="font-body text-sm text-foreground">Messages</h3>
+                       <button className="text-[11px] text-gold hover:underline" onClick={() => setView('requests')}>View All</button>
+                    </div>
+                    <div className="space-y-4">
+                       <MessageRow avatar="R" avatarColor="bg-purple-500/20 text-purple-400" name="Resort Team" time="10:30 AM" preview="Welcome to BAIA Boutique! Let us know if you need..." />
+                       <MessageRow avatar="C" avatarColor="bg-green-500/20 text-green-400" name="Concierge" time="Yesterday" preview="Your dinner reservation is confirmed." />
+                       <MessageRow avatar="S" avatarColor="bg-amber-500/20 text-amber-400" name="Spa" time="May 20" preview="Reminder: You have a spa appointment tomorrow." />
+                    </div>
+                 </div>
+              </div>
+
+              {/* ── Activity Timeline (Desktop only) ── */}
+              <div className="lux-card p-5 mb-8">
+                 <div className="flex justify-between items-center mb-6">
+                    <h3 className="font-body text-sm text-foreground">Activity Timeline</h3>
+                    <button className="text-[11px] text-gold hover:underline" onClick={() => setView('reservation')}>View All</button>
+                 </div>
+                 <div className="flex justify-between relative px-4">
+                    <div className="absolute top-4 left-10 right-10 h-0.5 bg-border -z-10"></div>
+                    <TimelineStep icon={<Calendar />} date="May 10" title="Reservation Confirmed" time="10:24 AM" active />
+                    <TimelineStep icon={<CreditCard />} date="May 10" title="Payment Received" time="10:24 AM" active />
+                    <TimelineStep icon={<Bell />} date="May 15" title="Romantic Dinner Booked" time="2:15 PM" active />
+                    <TimelineStep icon={<Palmtree />} date="May 20" title="Spa Treatment Scheduled" time="9:00 AM" active />
+                    <TimelineStep icon={<Car />} date="May 22" title="Airport Transfer Confirmed" time="11:30 AM" active />
+                 </div>
+                 
+                 {/* Exclusive Offer Banner */}
+                 <div className="mt-8 bg-card border border-border rounded-xl p-4 flex justify-between items-center">
+                    <div className="flex items-center gap-4">
+                       <img src="https://images.unsplash.com/photo-1544148103-0773bf10d330?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80" className="w-24 h-16 object-cover rounded-lg" alt="Dinner" />
+                       <div>
+                          <p className="font-display text-[10px] tracking-widest uppercase text-gold mb-1">Exclusive Offer</p>
+                          <p className="font-body text-sm text-foreground font-medium">Sunset Dinner Experience</p>
+                          <p className="font-body text-xs text-muted-foreground">Enjoy a private 3-course dinner by the beach.</p>
+                       </div>
+                    </div>
+                    <div className="text-right">
+                       <Button className="bg-gold text-background hover:bg-gold/90 font-display text-xs mb-1 h-8" onClick={() => setView('experiences')}>Book Now</Button>
+                       <p className="font-body text-[10px] text-muted-foreground">Limited availability</p>
+                    </div>
+                 </div>
+              </div>
+
+              {/* ── Mobile View: How can we help you today? ── */}
+              <div className="md:hidden luxury-glass rounded-2xl p-5 mb-5">
+                <h3 className="font-serif-display text-xl text-foreground mb-4">How can we help you today?</h3>
+                <div className="flex flex-col gap-3">
+                  <GuestTile
+                    icon={<UtensilsCrossed className="w-6 h-6" />}
+                    label="Order Food"
+                    subtitle="Browse our menu and order to your room"
+                    onClick={() => {
+                      setGuestSession({ room_id: session.room_id, room_name: session.room_name, guest_name: session.guest_name, booking_id: session.booking_id });
+                      navigate('/menu?mode=guest-order&dept=kitchen');
+                    }}
+                  />
+                  <GuestTile
+                    icon={<span className="text-2xl">🍹</span>}
+                    label="Order Drinks"
+                    subtitle="Cocktails, coffee, fresh juices & more"
+                    onClick={() => {
+                      setGuestSession({ room_id: session.room_id, room_name: session.room_name, guest_name: session.guest_name, booking_id: session.booking_id });
+                      navigate('/menu?mode=guest-order&dept=bar');
+                    }}
+                  />
+                  <GuestTile
+                    icon={<Palmtree className="w-6 h-6" />}
+                    label="Book Experiences"
+                    subtitle="Tours, transport & equipment rental"
+                    onClick={() => setView('experiences')}
+                  />
+                  <GuestTile
+                    icon={<MessageSquare className="w-6 h-6" />}
+                    label="Request Service"
+                    subtitle="Housekeeping, towels, or anything you need"
+                    onClick={() => setView('request')}
+                  />
+                  <GuestTile
+                    icon={<ConciergeBell className="w-6 h-6" />}
+                    label="Message Reception"
+                    subtitle="Send a note directly to our front desk"
+                    onClick={() => setView('message')}
+                  />
+                </div>
+              </div>
+
+              {/* ── Mobile View: Quick access (5 tiles) ── */}
+              <div className="md:hidden grid grid-cols-5 gap-2 mb-6">
+                {[
+                  { icon: ClipboardList, label: 'My Orders', onClick: () => setView('orders') },
+                  { icon: CheckCircle2, label: 'My Requests', onClick: () => setView('requests') },
+                  { icon: Receipt, label: 'My Bill', onClick: () => setView('bill') },
+                  { icon: Star, label: 'Reviews', onClick: () => setView('review') },
+                  { icon: Info, label: 'Hotel Info', onClick: () => setView('hotel-info') },
+                ].map(({ icon: Icon, label, onClick }) => (
+                  <button
+                    key={label}
+                    type="button"
+                    onClick={onClick}
+                    className="luxury-glass rounded-xl p-2 flex flex-col items-center justify-center gap-1.5 hover:border-gold/40 transition-colors h-[80px]"
+                  >
+                    <Icon className="w-5 h-5 text-gold" />
+                    <span className="font-body text-[9px] text-foreground text-center leading-tight max-w-full break-words">{label}</span>
+                  </button>
+                ))}
+              </div>
+
+              {/* Mobile View Logout */}
+              <div className="md:hidden mb-6">
+                <button onClick={logout} className="flex items-center justify-center gap-2 w-full font-body text-xs text-gold hover:text-foreground py-3">
+                  <LogOut className="w-3.5 h-3.5" /> Sign out
+                </button>
+              </div>
+            </>
+          )}
+
+        {/* Experiences hub — combines tours, transport, rentals */}
+        {view === 'experiences' && (
+          <div className="space-y-4">
+            <h2 className="font-display text-lg text-foreground">Book an Experience</h2>
+            <p className="font-body text-xs text-muted-foreground">Choose from tours, transport, or equipment rental below.</p>
+            <div className="flex flex-col gap-3">
+              <GuestTile icon={<MapPin className="w-5 h-5" />} label="Island Tours" subtitle="Explore the best of Palawan" onClick={() => setView('tours')} />
+              <GuestTile icon={<Car className="w-5 h-5" />} label="Transport" subtitle="Airport transfers & van hire" onClick={() => setView('transport')} />
+              <GuestTile icon={<Bike className="w-5 h-5" />} label="Rent Equipment" subtitle="Scooters, bikes, kayaks & more" onClick={() => setView('rentals')} />
+            </div>
+          </div>
+        )}
+
+        {/* Message reception — simple text-to-reception */}
+        {view === 'message' && <MessageReceptionView session={session} qc={qc} onDone={() => setView('dashboard')} />}
+
+        {view === 'tours' && <ToursView session={session} qc={qc} />}
+        {view === 'transport' && <TransportView session={session} qc={qc} />}
+        {view === 'rentals' && <RentalsView session={session} qc={qc} />}
+        {view === 'request' && <RequestView session={session} qc={qc} />}
+        {view === 'review' && <ReviewView session={session} qc={qc} onDone={() => setView('dashboard')} />}
+        {view === 'orders' && <OrdersView session={session} />}
+        {view === 'requests' && <RequestsTrackerView session={session} />}
+        {view === 'bill' && <BillView session={session} />}
+        {view === 'hotel-info' && <HotelInfoView profile={profile} />}
+        {view === 'reservation' && <ReservationDetailsView session={session} booking={bookingDetails} onBill={() => setView('bill')} /> }
+        {view === 'local-guide' && (
+          <div className="space-y-4 max-w-2xl mx-auto">
+            <h2 className="font-display text-2xl text-foreground">Local Guide</h2>
+            <div className="lux-card p-12 text-center text-muted-foreground border-dashed border-border/50">
+              <MapIcon className="w-16 h-16 mx-auto mb-6 text-gold opacity-50" />
+              <h3 className="font-display text-lg text-foreground mb-2">Discover the Area</h3>
+              <p className="font-body text-sm max-w-md mx-auto leading-relaxed">Explore curated local attractions, hidden beaches, and immersive cultural experiences tailored exclusively for our guests.</p>
+              <div className="mt-8 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-secondary text-xs font-medium text-muted-foreground">
+                <Clock className="w-3.5 h-3.5" /> Coming soon
+              </div>
+            </div>
+          </div>
+        )}
+        {view === 'settings' && (
+          <div className="space-y-4 max-w-2xl mx-auto">
+            <h2 className="font-display text-2xl text-foreground">Settings</h2>
+            <div className="lux-card p-12 text-center text-muted-foreground border-dashed border-border/50">
+              <Settings className="w-16 h-16 mx-auto mb-6 text-teal-400 opacity-50" />
+              <h3 className="font-display text-lg text-foreground mb-2">Account Preferences</h3>
+              <p className="font-body text-sm max-w-md mx-auto leading-relaxed">Manage your communication preferences, update notification settings, and personalize your stay details.</p>
+              <div className="mt-8 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-secondary text-xs font-medium text-muted-foreground">
+                <Clock className="w-3.5 h-3.5" /> Coming soon
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Hermes AI Assistant — available on all guest pages */}
+        <HermesChatWidget guestSession={session} />
+        </div>
+      </main>
+
+      {/* ── MOBILE BOTTOM NAV ── */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-card/95 backdrop-blur-lg border-t border-border flex justify-around items-center h-16 z-50 px-2 pb-safe">
+         <BottomNavLink icon={<Home className="w-5 h-5" />} label="Home" active={view === 'dashboard'} onClick={() => setView('dashboard')} />
+         <BottomNavLink icon={<ConciergeBell className="w-5 h-5" />} label="Services" active={view === 'request'} onClick={() => setView('request')} />
+         <button onClick={() => setView('experiences')} className="w-12 h-12 rounded-full border border-gold flex items-center justify-center -mt-6 bg-background shadow-lg shadow-gold/20 flex-shrink-0">
+             <Plus className="w-6 h-6 text-gold" />
+         </button>
+         <BottomNavLink icon={<MessageSquare className="w-5 h-5" />} label="Messages" badge={notifCount > 0 ? notifCount : undefined} active={view === 'requests'} onClick={() => setView('requests')} />
+         <BottomNavLink icon={<User className="w-5 h-5" />} label="Profile" active={view === 'reservation'} onClick={() => setView('reservation')} />
+      </nav>
+    </div>
+  );
+};
+
+/** Large full-width tile for guest concierge */
+const GuestTile = ({ icon, label, subtitle, onClick }: { icon: React.ReactNode; label: string; subtitle: string; onClick: () => void }) => (
+  <button onClick={onClick} className="w-full bg-card border border-border rounded-lg p-5 flex items-center gap-4 hover:bg-secondary transition-colors text-left">
+    <div className="w-12 h-12 rounded-full bg-accent/10 flex items-center justify-center flex-shrink-0">
+      <span className="text-accent">{icon}</span>
+    </div>
+    <div>
+      <p className="font-display text-base text-foreground">{label}</p>
+      <p className="font-body text-xs text-muted-foreground">{subtitle}</p>
+    </div>
+  </button>
+);
+
+/** Hotel info screen — shows resort profile contact + social links */
+const HotelInfoView = ({ profile }: { profile: any }) => (
+  <div className="space-y-4">
+    <h2 className="font-serif-display text-2xl text-foreground">Hotel Information</h2>
+    {profile?.logo_url && (
+      <div className="flex justify-center py-2">
+        <img src={profile.logo_url} alt={profile?.resort_name || 'Logo'} className="w-20 h-20 object-contain" />
+      </div>
+    )}
+    <div className="luxury-glass rounded-2xl p-5 space-y-4">
+      <div>
+        <p className="font-body text-[10px] tracking-[0.28em] uppercase text-gold/80 mb-1">Resort</p>
+        <p className="font-serif-display text-xl text-foreground">{profile?.resort_name || 'BAIA Boutique'}</p>
+        {profile?.tagline && <p className="font-body text-sm text-muted-foreground mt-1">{profile.tagline}</p>}
+      </div>
+      {profile?.address && (
+        <div className="flex items-start gap-3">
+          <MapPinned className="w-4 h-4 text-gold mt-0.5 shrink-0" />
+          <p className="font-body text-sm text-foreground">{profile.address}</p>
+        </div>
+      )}
+      {profile?.phone && (
+        <a href={`tel:${profile.phone}`} className="flex items-center gap-3 hover:text-gold transition-colors">
+          <Phone className="w-4 h-4 text-gold shrink-0" />
+          <span className="font-body text-sm text-foreground">{profile.phone}</span>
+        </a>
+      )}
+      {profile?.email && (
+        <a href={`mailto:${profile.email}`} className="flex items-center gap-3 hover:text-gold transition-colors">
+          <Mail className="w-4 h-4 text-gold shrink-0" />
+          <span className="font-body text-sm text-foreground">{profile.email}</span>
+        </a>
+      )}
+      {profile?.website_url && (
+        <a href={profile.website_url} target="_blank" rel="noreferrer" className="flex items-center gap-3 hover:text-gold transition-colors">
+          <Info className="w-4 h-4 text-gold shrink-0" />
+          <span className="font-body text-sm text-foreground">{profile.website_url}</span>
+        </a>
+      )}
+    </div>
+    {(profile?.facebook_url || profile?.instagram_url || profile?.tiktok_url) && (
+      <div className="flex justify-center gap-3">
+        {profile?.facebook_url && <a href={profile.facebook_url} target="_blank" rel="noreferrer" className="luxury-glass rounded-full px-4 py-2 font-body text-xs text-foreground hover:border-gold/40">Facebook</a>}
+        {profile?.instagram_url && <a href={profile.instagram_url} target="_blank" rel="noreferrer" className="luxury-glass rounded-full px-4 py-2 font-body text-xs text-foreground hover:border-gold/40">Instagram</a>}
+        {profile?.tiktok_url && <a href={profile.tiktok_url} target="_blank" rel="noreferrer" className="luxury-glass rounded-full px-4 py-2 font-body text-xs text-foreground hover:border-gold/40">TikTok</a>}
+      </div>
+    )}
+  </div>
+);
+
+/** Reservation details screen — summary of current stay */
+const ReservationDetailsView = ({ session, booking, onBill }: { session: GuestPortalSession; booking: any; onBill: () => void }) => {
+  const nights = booking?.check_in
+    ? Math.max(1, Math.round((new Date(session.check_out).getTime() - new Date(booking.check_in).getTime()) / 86400000))
+    : 0;
+  return (
+    <div className="space-y-4">
+      <h2 className="font-serif-display text-2xl text-foreground">Your Reservation</h2>
+      <div className="luxury-glass rounded-2xl p-5 space-y-4">
+        <div>
+          <p className="font-body text-[10px] tracking-[0.28em] uppercase text-gold/80 mb-1">Room</p>
+          <p className="font-serif-display text-xl text-foreground">{session.room_name}</p>
+          <p className="font-body text-xs text-muted-foreground">Guest · {session.guest_name}</p>
+        </div>
+        <div className="grid grid-cols-2 gap-4 border-t border-border/40 pt-4">
+          <div>
+            <p className="font-body text-[10px] tracking-[0.22em] uppercase text-muted-foreground">Check-In</p>
+            <p className="font-serif-display text-base text-foreground mt-1">
+              {booking?.check_in ? new Date(booking.check_in + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}
+            </p>
+            <p className="font-body text-[10px] text-muted-foreground">3:00 PM</p>
+          </div>
+          <div>
+            <p className="font-body text-[10px] tracking-[0.22em] uppercase text-muted-foreground">Check-Out</p>
+            <p className="font-serif-display text-base text-foreground mt-1">
+              {new Date(session.check_out + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+            </p>
+            <p className="font-body text-[10px] text-muted-foreground">11:00 AM</p>
+          </div>
+        </div>
+        <div className="border-t border-border/40 pt-4 flex flex-wrap gap-x-5 gap-y-2 text-sm">
+          <span className="font-body text-foreground flex items-center gap-1.5">
+            <Users className="w-3.5 h-3.5 text-muted-foreground" />
+            {booking?.adults ?? 1} Adult{(booking?.adults ?? 1) !== 1 ? 's' : ''}
+            {booking?.children ? `, ${booking.children} Child${booking.children !== 1 ? 'ren' : ''}` : ''}
+          </span>
+          {nights > 0 && (
+            <span className="font-body text-foreground flex items-center gap-1.5">
+              <Moon className="w-3.5 h-3.5 text-muted-foreground" /> {nights} Night{nights !== 1 ? 's' : ''}
+            </span>
+          )}
+          {booking?.platform && (
+            <span className="font-body text-muted-foreground">Booked via {booking.platform}</span>
+          )}
+        </div>
+      </div>
+      <button onClick={onBill} className="w-full luxury-glass rounded-xl py-3 font-display text-xs tracking-[0.2em] uppercase text-gold hover:border-gold/40 transition-colors min-h-[44px] flex items-center justify-center gap-2">
+        <Receipt className="w-4 h-4" /> View My Bill
+      </button>
+    </div>
+  );
+};
+
+/** Simple message-to-reception flow */
+const MessageReceptionView = ({ session, qc, onDone }: { session: GuestPortalSession; qc: any; onDone: () => void }) => {
+  const [message, setMessage] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [sent, setSent] = useState(false);
+
+  const send = async () => {
+    if (!message.trim()) return;
+    setSubmitting(true);
+    await supabase.from('guest_requests').insert({
+      booking_id: session.booking_id,
+      room_id: session.room_id,
+      guest_name: session.guest_name,
+      request_type: 'Message',
+      details: message.trim(),
+      status: 'pending',
+    });
+    import('@/lib/telegram').then(({ notifyTelegram }) => {
+      notifyTelegram('reception,managers', `🛎️ Guest Request\n${session.guest_name}\nMessage: ${message.trim()}`);
+    });
+    qc.invalidateQueries({ queryKey: ['guest-requests-admin'] });
+    setSubmitting(false);
+    setSent(true);
+  };
+
+  if (sent) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 space-y-4">
+        <div className="w-16 h-16 rounded-full bg-emerald-500/20 flex items-center justify-center">
+          <CheckCircle2 className="w-8 h-8 text-emerald-400" />
+        </div>
+        <p className="font-display text-lg text-foreground">Message Sent!</p>
+        <p className="font-body text-sm text-muted-foreground text-center">Our team will get back to you shortly.</p>
+        <Button onClick={onDone} variant="outline" className="font-display tracking-wider mt-4">Done</Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <h2 className="font-display text-lg text-foreground">Message Reception</h2>
+      <p className="font-body text-sm text-muted-foreground">Send a message directly to our front desk team.</p>
+      <Textarea
+        value={message}
+        onChange={e => setMessage(e.target.value)}
+        placeholder="How can we help you today?"
+        className="bg-secondary border-border text-foreground min-h-[150px] text-base"
+      />
+      <Button onClick={send} disabled={submitting || !message.trim()} className="w-full font-display tracking-wider h-12">
+        {submitting ? 'Sending...' : 'Send Message'}
+      </Button>
+    </div>
+  );
+};
+
+// --- Tours (Enhanced: pickup time, notes, pending status) ---
+const ToursView = ({ session, qc }: { session: GuestPortalSession; qc: any }) => {
+  const { data: tours = [] } = useQuery({
+    queryKey: ['tours-guest'],
+    queryFn: async () => {
+      const { data } = await supabase.from('tours_config').select('*').eq('active', true).order('sort_order');
+      return data || [];
+    },
+  });
+  const [selectedTour, setSelectedTour] = useState<any>(null);
+  const [pax, setPax] = useState('1');
+  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [pickupTime, setPickupTime] = useState('07:00');
+  const [notes, setNotes] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  const book = async () => {
+    if (!selectedTour) return;
+    setSubmitting(true);
+    const totalPrice = selectedTour.price * (parseInt(pax) || 1);
+    // Create pending booking — NO room charge yet
+    await (supabase.from('tour_bookings') as any).insert({
+      booking_id: session.booking_id,
+      guest_name: session.guest_name,
+      tour_name: selectedTour.name,
+      tour_date: date,
+      pax: parseInt(pax) || 1,
+      price: totalPrice,
+      room_id: session.room_id,
+      status: 'pending',
+      pickup_time: pickupTime,
+      notes: notes.trim(),
+    });
+    import('@/lib/telegram').then(({ notifyTelegram }) => {
+      notifyTelegram('tours,managers', `🚐 New Booking\n${session.guest_name}\n${selectedTour.name} - ${date} ${pickupTime}`);
+    });
+    qc.invalidateQueries({ queryKey: ['tour-bookings-admin'] });
+    toast.success('Tour request submitted! Staff will confirm shortly.');
+    setSelectedTour(null);
+    setNotes('');
+    setPickupTime('07:00');
+    setSubmitting(false);
+  };
+
+  return (
+    <div className="space-y-3">
+      <h2 className="font-display text-lg text-foreground">Book a Tour</h2>
+      <p className="font-body text-xs text-muted-foreground">Select a tour below. Staff will confirm your booking.</p>
+      {tours.map((t: any) => (
+        <div key={t.id} onClick={() => setSelectedTour(t)} className={`bg-card border rounded-lg p-4 cursor-pointer transition-colors ${selectedTour?.id === t.id ? 'border-accent' : 'border-border hover:border-muted-foreground'}`}>
+          <div className="flex justify-between items-start">
+            <div>
+              <p className="font-body text-sm text-foreground font-medium">{t.name}</p>
+              <p className="font-body text-xs text-muted-foreground">{t.description}</p>
+              <p className="font-body text-xs text-muted-foreground">{t.duration} · {t.schedule} · Max {t.max_pax} pax</p>
+            </div>
+            <span className="font-body text-sm text-accent font-medium">₱{t.price}/pax</span>
+          </div>
+        </div>
+      ))}
+      {selectedTour && (
+        <div className="bg-secondary p-4 rounded-lg space-y-3">
+          <p className="font-body text-sm text-foreground font-medium">{selectedTour.name}</p>
+          <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-1">
+              <Label className="font-body text-xs text-muted-foreground flex items-center gap-1"><Calendar className="w-3 h-3" /> Date</Label>
+              <Input type="date" value={date} onChange={e => setDate(e.target.value)} className="bg-card text-foreground h-10" />
+            </div>
+            <div className="space-y-1">
+              <Label className="font-body text-xs text-muted-foreground flex items-center gap-1"><Users className="w-3 h-3" /> Pax</Label>
+              <Input type="number" value={pax} onChange={e => setPax(e.target.value)} min="1" max={selectedTour.max_pax} className="bg-card text-foreground h-10" />
+            </div>
+          </div>
+          <div className="space-y-1">
+            <Label className="font-body text-xs text-muted-foreground flex items-center gap-1"><Clock className="w-3 h-3" /> Pickup Time</Label>
+            <Input type="time" value={pickupTime} onChange={e => setPickupTime(e.target.value)} className="bg-card text-foreground h-10" />
+          </div>
+          <div className="space-y-1">
+            <Label className="font-body text-xs text-muted-foreground flex items-center gap-1"><StickyNote className="w-3 h-3" /> Special Requests</Label>
+            <Textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="e.g. Vegetarian lunch, need snorkel gear..." className="bg-card text-foreground min-h-[60px]" />
+          </div>
+          <p className="font-body text-sm text-foreground text-right">Total: ₱{selectedTour.price * (parseInt(pax) || 1)}</p>
+          <Button onClick={book} disabled={submitting} className="w-full">{submitting ? 'Submitting...' : 'Request Tour Booking'}</Button>
+          <p className="font-body text-xs text-muted-foreground text-center">Staff will confirm and charge to your room</p>
+        </div>
+      )}
+      {tours.length === 0 && <p className="font-body text-sm text-muted-foreground">No tours available at the moment.</p>}
+    </div>
+  );
+};
+
+// --- Transport (Now pending, no auto-charge) ---
+const TransportView = ({ session, qc }: { session: GuestPortalSession; qc: any }) => {
+  const { data: rates = [] } = useQuery({
+    queryKey: ['transport-guest'],
+    queryFn: async () => {
+      const { data } = await supabase.from('transport_rates').select('*').eq('active', true).order('sort_order');
+      return data || [];
+    },
+  });
+  const [selectedRate, setSelectedRate] = useState<any>(null);
+  const [pickupDate, setPickupDate] = useState(new Date().toISOString().split('T')[0]);
+  const [pickupTime, setPickupTime] = useState('08:00');
+  const [submitting, setSubmitting] = useState(false);
+
+  const book = async () => {
+    if (!selectedRate) return;
+    setSubmitting(true);
+    const label = `${selectedRate.origin} → ${selectedRate.destination}`;
+    // Create pending request — NO room charge yet
+    const transportDetail = `${label} — ₱${selectedRate.price} — ${pickupDate} ${pickupTime}`;
+    await supabase.from('guest_requests').insert({
+      booking_id: session.booking_id,
+      room_id: session.room_id,
+      guest_name: session.guest_name,
+      request_type: 'Transport',
+      details: transportDetail,
+      status: 'pending',
+    });
+    import('@/lib/telegram').then(({ notifyTelegram }) => {
+      notifyTelegram('tours,managers', `🚐 New Booking\n${session.guest_name}\nTransport: ${transportDetail}`);
+    });
+    qc.invalidateQueries({ queryKey: ['guest-requests-admin'] });
+    toast.success('Transport request submitted! Staff will confirm shortly.');
+    setSelectedRate(null);
+    setSubmitting(false);
+  };
+
+  return (
+    <div className="space-y-3">
+      <h2 className="font-display text-lg text-foreground">Request Transport</h2>
+      <p className="font-body text-xs text-muted-foreground">Select a route. Staff will confirm and charge to your room.</p>
+      {rates.map((r: any) => (
+        <div key={r.id} onClick={() => setSelectedRate(r)} className={`bg-card border rounded-lg p-4 cursor-pointer transition-colors ${selectedRate?.id === r.id ? 'border-accent' : 'border-border hover:border-muted-foreground'}`}>
+          <div className="flex justify-between items-center">
+            <div>
+              <p className="font-body text-sm text-foreground">{r.origin} → {r.destination}</p>
+              {r.description && <p className="font-body text-xs text-muted-foreground">{r.description}</p>}
+            </div>
+            <span className="font-body text-sm text-accent font-medium">₱{r.price}</span>
+          </div>
+        </div>
+      ))}
+      {selectedRate && (
+        <div className="bg-secondary p-4 rounded-lg space-y-3">
+          <p className="font-body text-sm text-foreground">{selectedRate.origin} → {selectedRate.destination}</p>
+          <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-1">
+              <Label className="font-body text-xs text-muted-foreground flex items-center gap-1"><Calendar className="w-3 h-3" /> Date</Label>
+              <Input type="date" value={pickupDate} onChange={e => setPickupDate(e.target.value)} className="bg-card text-foreground h-10" />
+            </div>
+            <div className="space-y-1">
+              <Label className="font-body text-xs text-muted-foreground flex items-center gap-1"><Clock className="w-3 h-3" /> Time</Label>
+              <Input type="time" value={pickupTime} onChange={e => setPickupTime(e.target.value)} className="bg-card text-foreground h-10" />
+            </div>
+          </div>
+          <p className="font-body text-sm text-foreground text-right">Total: ₱{selectedRate.price}</p>
+          <Button onClick={book} disabled={submitting} className="w-full">{submitting ? 'Submitting...' : 'Request Transport'}</Button>
+          <p className="font-body text-xs text-muted-foreground text-center">Staff will confirm and charge to your room</p>
+        </div>
+      )}
+      {rates.length === 0 && <p className="font-body text-sm text-muted-foreground">No transport options available.</p>}
+    </div>
+  );
+};
+
+// --- Rentals (Enhanced: duration selection, date, qty, notes, pending) ---
+const RentalsView = ({ session, qc }: { session: GuestPortalSession; qc: any }) => {
+  const { data: rates = [] } = useQuery({
+    queryKey: ['rentals-guest'],
+    queryFn: async () => {
+      const { data } = await supabase.from('rental_rates').select('*').eq('active', true).order('sort_order');
       return data || [];
     },
   });
 
-  const { data: recipeLinks = [] } = useQuery({
-    queryKey: ['recipe_ingredients_with_menu'],
+  // Group rates by item_type
+  const itemTypes = [...new Set(rates.map((r: any) => r.item_type))];
+  const [selectedType, setSelectedType] = useState<string | null>(null);
+  const [selectedRate, setSelectedRate] = useState<any>(null);
+  const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
+  const [qty, setQty] = useState('1');
+  const [notes, setNotes] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  const typeRates = rates.filter((r: any) => r.item_type === selectedType);
+  const totalPrice = selectedRate ? selectedRate.price * (parseInt(qty) || 1) : 0;
+
+  const ITEM_ICONS: Record<string, string> = {
+    'Scooter': '🛵',
+    'Bicycle': '🚲',
+    'Kayak': '🛶',
+    'Surfboard': '🏄',
+    'Snorkel': '🤿',
+  };
+
+  const book = async () => {
+    if (!selectedRate) return;
+    setSubmitting(true);
+    const detail = `${selectedType} — ${selectedRate.rate_name} × ${qty} — ₱${totalPrice} — Start: ${startDate}${notes.trim() ? ` — Notes: ${notes.trim()}` : ''}`;
+    // Create pending request — NO room charge yet
+    await supabase.from('guest_requests').insert({
+      booking_id: session.booking_id,
+      room_id: session.room_id,
+      guest_name: session.guest_name,
+      request_type: 'Rental',
+      details: detail,
+      status: 'pending',
+    });
+    import('@/lib/telegram').then(({ notifyTelegram }) => {
+      notifyTelegram('tours,managers', `🚐 New Booking\n${session.guest_name}\nRental: ${detail}`);
+    });
+    qc.invalidateQueries({ queryKey: ['guest-requests-admin'] });
+    toast.success('Rental request submitted! Staff will confirm shortly.');
+    setSelectedType(null);
+    setSelectedRate(null);
+    setNotes('');
+    setQty('1');
+    setSubmitting(false);
+  };
+
+  return (
+    <div className="space-y-3">
+      <h2 className="font-display text-lg text-foreground">Rent Equipment</h2>
+      <p className="font-body text-xs text-muted-foreground">Choose what you'd like to rent. Staff will confirm availability.</p>
+
+      {!selectedType ? (
+        <div className="grid grid-cols-2 gap-3">
+          {itemTypes.map(type => (
+            <button key={type} onClick={() => setSelectedType(type)} className="bg-card border border-border rounded-lg p-5 flex flex-col items-center gap-2 hover:border-accent transition-colors">
+              <span className="text-3xl">{ITEM_ICONS[type] || '🏷️'}</span>
+              <span className="font-body text-sm text-foreground font-medium">{type}</span>
+              <span className="font-body text-xs text-muted-foreground">{rates.filter((r: any) => r.item_type === type).length} options</span>
+            </button>
+          ))}
+          {itemTypes.length === 0 && <p className="font-body text-sm text-muted-foreground col-span-2">No rentals available.</p>}
+        </div>
+      ) : (
+        <div className="space-y-3">
+          <button onClick={() => { setSelectedType(null); setSelectedRate(null); }} className="flex items-center gap-1 text-muted-foreground hover:text-foreground font-body text-xs">
+            <ArrowLeft className="w-3 h-3" /> All equipment
+          </button>
+
+          <h3 className="font-body text-sm text-foreground font-medium">{ITEM_ICONS[selectedType] || '🏷️'} {selectedType} — Choose Duration</h3>
+
+          <RadioGroup value={selectedRate?.id || ''} onValueChange={id => setSelectedRate(typeRates.find((r: any) => r.id === id))}>
+            {typeRates.map((r: any) => (
+              <div key={r.id} className={`bg-card border rounded-lg p-4 cursor-pointer transition-colors ${selectedRate?.id === r.id ? 'border-accent' : 'border-border'}`}>
+                <div className="flex items-center gap-3">
+                  <RadioGroupItem value={r.id} id={r.id} />
+                  <Label htmlFor={r.id} className="flex-1 cursor-pointer">
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <p className="font-body text-sm text-foreground">{r.rate_name}</p>
+                        {r.description && <p className="font-body text-xs text-muted-foreground">{r.description}</p>}
+                      </div>
+                      <span className="font-body text-sm text-accent font-medium">₱{r.price}</span>
+                    </div>
+                  </Label>
+                </div>
+              </div>
+            ))}
+          </RadioGroup>
+
+          {selectedRate && (
+            <div className="bg-secondary p-4 rounded-lg space-y-3">
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <Label className="font-body text-xs text-muted-foreground flex items-center gap-1"><Calendar className="w-3 h-3" /> Start Date</Label>
+                  <Input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="bg-card text-foreground h-10" />
+                </div>
+                <div className="space-y-1">
+                  <Label className="font-body text-xs text-muted-foreground">Quantity</Label>
+                  <Input type="number" value={qty} onChange={e => setQty(e.target.value)} min="1" max="5" className="bg-card text-foreground h-10" />
+                </div>
+              </div>
+              <div className="space-y-1">
+                <Label className="font-body text-xs text-muted-foreground flex items-center gap-1"><StickyNote className="w-3 h-3" /> Preferences</Label>
+                <Textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="e.g. Automatic scooter preferred, need helmet..." className="bg-card text-foreground min-h-[60px]" />
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="font-body text-xs text-muted-foreground">{selectedRate.rate_name} × {qty}</span>
+                <span className="font-body text-sm text-foreground font-medium">Total: ₱{totalPrice}</span>
+              </div>
+              <Button onClick={book} disabled={submitting} className="w-full">{submitting ? 'Submitting...' : 'Request Rental'}</Button>
+              <p className="font-body text-xs text-muted-foreground text-center">Staff will confirm availability and charge to your room</p>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// --- Request/Note ---
+const RequestView = ({ session, qc }: { session: GuestPortalSession; qc: any }) => {
+  const { data: categories = [] } = useQuery({
+    queryKey: ['request-cats-guest'],
     queryFn: async () => {
-      const { data } = await supabase
-        .from('recipe_ingredients')
-        .select('ingredient_id, menu_item_id, quantity, menu_items(name)');
+      const { data } = await supabase.from('request_categories').select('*').eq('active', true).order('sort_order');
       return data || [];
     },
   });
+  const [type, setType] = useState('');
+  const [details, setDetails] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
-  const { data: burnLogs = [] } = useQuery({
-    queryKey: ['burn-rate-logs'],
+  const submit = async () => {
+    if (!type || !details.trim()) return;
+    setSubmitting(true);
+    await supabase.from('guest_requests').insert({
+      booking_id: session.booking_id,
+      room_id: session.room_id,
+      guest_name: session.guest_name,
+      request_type: type,
+      details: details.trim(),
+      status: 'pending',
+    });
+    import('@/lib/telegram').then(({ notifyTelegram }) => {
+      notifyTelegram('reception,managers', `🛎️ Guest Request\n${session.guest_name}\n${type}: ${details.trim()}`);
+    });
+    qc.invalidateQueries({ queryKey: ['guest-requests-admin'] });
+    toast.success('Request submitted!');
+    setDetails('');
+    setType('');
+    setSubmitting(false);
+  };
+
+  return (
+    <div className="space-y-3">
+      <h2 className="font-display text-lg text-foreground">Leave a Note / Request</h2>
+      <Select onValueChange={setType} value={type}>
+        <SelectTrigger className="bg-secondary border-border text-foreground h-12">
+          <SelectValue placeholder="Select category" />
+        </SelectTrigger>
+        <SelectContent className="bg-card border-border">
+          {categories.map((c: any) => <SelectItem key={c.id} value={c.name} className="text-foreground">{c.icon} {c.name}</SelectItem>)}
+        </SelectContent>
+      </Select>
+      <Textarea value={details} onChange={e => setDetails(e.target.value)} placeholder="Describe your request..." className="bg-secondary border-border text-foreground min-h-[120px]" />
+      <Button onClick={submit} disabled={submitting || !type || !details.trim()} className="w-full">{submitting ? 'Submitting...' : 'Submit Request'}</Button>
+    </div>
+  );
+};
+
+// --- Review ---
+const ReviewView = ({ session, qc, onDone }: { session: GuestPortalSession; qc: any; onDone: () => void }) => {
+  const { data: categories = [] } = useQuery({
+    queryKey: ['review-cats-guest'],
     queryFn: async () => {
-      const since = subDays(new Date(), 14).toISOString();
-      const { data } = await supabase
-        .from('inventory_logs')
-        .select('ingredient_id, change_qty, created_at')
-        .eq('reason', 'order_deduction')
-        .gte('created_at', since);
+      const { data } = await supabase.from('review_settings').select('*').eq('active', true).order('sort_order');
       return data || [];
     },
   });
+  const [ratings, setRatings] = useState<Record<string, number>>({});
+  const [comments, setComments] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
-  const [logDays, setLogDays] = useState(7);
-  const { data: consumptionLogs = [] } = useQuery({
-    queryKey: ['consumption-logs', logDays],
+  const submit = async () => {
+    setSubmitting(true);
+    await supabase.from('guest_reviews').insert({
+      booking_id: session.booking_id,
+      room_id: session.room_id,
+      guest_name: session.guest_name,
+      ratings,
+      comments: comments.trim(),
+    });
+    qc.invalidateQueries({ queryKey: ['guest-reviews-admin'] });
+    toast.success('Thank you for your review!');
+    setSubmitting(false);
+    onDone();
+  };
+
+  return (
+    <div className="space-y-4">
+      <h2 className="font-display text-lg text-foreground">Write a Review</h2>
+      {categories.map((c: any) => {
+        const selected = ratings[c.category_name] || 0;
+        return (
+          <div key={c.id} className="space-y-2">
+            <div className="flex items-center justify-between">
+              <p className="font-body text-sm text-foreground">{c.category_name}</p>
+              {selected > 0 && (
+                <span className="font-display text-sm text-accent">{selected}/10</span>
+              )}
+            </div>
+            <div className="flex gap-1">
+              {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(num => (
+                <button
+                  key={num}
+                  onClick={() => setRatings(r => ({ ...r, [c.category_name]: num }))}
+                  className={`flex-1 h-9 rounded text-xs font-display tracking-wider border transition-colors ${
+                    selected === num
+                      ? 'bg-accent text-accent-foreground border-accent'
+                      : selected >= num
+                        ? 'bg-accent/20 text-accent border-accent/40'
+                        : 'bg-secondary text-muted-foreground border-border hover:border-foreground/30'
+                  }`}
+                >
+                  {num}
+                </button>
+              ))}
+            </div>
+          </div>
+        );
+      })}
+      <Textarea value={comments} onChange={e => setComments(e.target.value)} placeholder="Any additional comments..." className="bg-secondary border-border text-foreground min-h-[100px]" />
+      <Button onClick={submit} disabled={submitting} className="w-full">{submitting ? 'Submitting...' : 'Submit Review'}</Button>
+    </div>
+  );
+};
+
+// --- Orders ---
+const ORDER_STATUS_MAP: Record<string, { label: string; color: string }> = {
+  'New': { label: 'Received', color: 'bg-blue-500/20 text-blue-400' },
+  'Preparing': { label: 'Preparing', color: 'bg-amber-500/20 text-amber-400' },
+  'Ready': { label: 'Ready', color: 'bg-emerald-500/20 text-emerald-400' },
+  'Served': { label: 'Served', color: 'bg-green-500/20 text-green-400' },
+  'Paid': { label: 'Complete', color: 'bg-muted text-muted-foreground' },
+  'Closed': { label: 'Closed', color: 'bg-muted text-muted-foreground' },
+  'Cancelled': { label: 'Cancelled', color: 'bg-destructive/20 text-destructive' },
+};
+
+const DEPT_STATUS_LABELS: Record<string, string> = {
+  pending: 'Waiting',
+  preparing: 'Preparing',
+  ready: 'Ready',
+};
+
+const OrdersView = ({ session }: { session: GuestPortalSession }) => {
+  const qc = useQueryClient();
+
+  const { data: orders = [] } = useQuery({
+    queryKey: ['guest-orders', session.room_id, session.room_name],
     queryFn: async () => {
-      const since = subDays(new Date(), logDays).toISOString();
+      // Primary: orders linked by room_id
+      const { data: byRoom } = await supabase
+        .from('orders')
+        .select('*')
+        .eq('room_id', session.room_id)
+        .order('created_at', { ascending: false });
+      // Fallback: orders where room_id is null but location_detail matches room name
+      const { data: byLocation } = await supabase
+        .from('orders')
+        .select('*')
+        .is('room_id', null)
+        .eq('location_detail', session.room_name)
+        .order('created_at', { ascending: false });
+      // Merge and deduplicate
+      const map = new Map<string, any>();
+      for (const o of [...(byRoom || []), ...(byLocation || [])]) map.set(o.id, o);
+      return Array.from(map.values()).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    },
+  });
+
+  useEffect(() => {
+    const channel = supabase
+      .channel('guest-order-updates')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'orders',
+        filter: `room_id=eq.${session.room_id}`,
+      }, () => {
+        qc.invalidateQueries({ queryKey: ['guest-orders', session.room_id, session.room_name] });
+      })
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'orders',
+      }, (payload: any) => {
+        // Also catch orders matching by location_detail (no room_id set)
+        if (payload.new?.location_detail === session.room_name && !payload.new?.room_id) {
+          qc.invalidateQueries({ queryKey: ['guest-orders', session.room_id, session.room_name] });
+        }
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [session.room_id, session.room_name, qc]);
+
+  return (
+    <div className="space-y-4">
+      <h2 className="font-display text-lg text-foreground">My Orders</h2>
+      {orders.length === 0 ? (
+        <p className="font-body text-sm text-muted-foreground text-center py-8">No orders during your stay.</p>
+      ) : (
+        orders.map((order: any) => {
+          const statusInfo = ORDER_STATUS_MAP[order.status] || { label: order.status, color: 'bg-muted text-muted-foreground' };
+          const items = Array.isArray(order.items) ? order.items : [];
+          const hasKitchenItems = items.some((i: any) => (i.department || 'kitchen') === 'kitchen' || (i.department || 'kitchen') === 'both');
+          const hasBarItems = items.some((i: any) => i.department === 'bar' || i.department === 'both');
+          const timeStr = new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+          const dateStr = new Date(order.created_at).toLocaleDateString([], { month: 'short', day: 'numeric' });
+          return (
+            <div key={order.id} className="bg-card border border-border rounded-lg p-4 space-y-2">
+              <div className="flex justify-between items-start">
+                <span className="font-body text-xs text-muted-foreground">
+                  {dateStr} · {timeStr}
+                </span>
+                <div className="flex flex-wrap gap-1 justify-end">
+                  <span className={`font-body text-xs px-2 py-0.5 rounded-full ${statusInfo.color}`}>
+                    {statusInfo.label}
+                  </span>
+                </div>
+              </div>
+              {/* Department-level status badges */}
+              {(order.status === 'New' || order.status === 'Preparing' || order.status === 'Ready') && (
+                <div className="flex flex-wrap gap-1.5">
+                  {hasKitchenItems && (
+                    <span className={`font-body text-[11px] px-2 py-0.5 rounded-full border ${
+                      order.kitchen_status === 'ready' ? 'bg-green-500/15 text-green-400 border-green-500/30' :
+                      order.kitchen_status === 'preparing' ? 'bg-amber-500/15 text-amber-400 border-amber-500/30' :
+                      'bg-blue-500/15 text-blue-400 border-blue-500/30'
+                    }`}>
+                      🍳 {DEPT_STATUS_LABELS[order.kitchen_status] || 'Waiting'}
+                    </span>
+                  )}
+                  {hasBarItems && (
+                    <span className={`font-body text-[11px] px-2 py-0.5 rounded-full border ${
+                      order.bar_status === 'ready' ? 'bg-green-500/15 text-green-400 border-green-500/30' :
+                      order.bar_status === 'preparing' ? 'bg-amber-500/15 text-amber-400 border-amber-500/30' :
+                      'bg-blue-500/15 text-blue-400 border-blue-500/30'
+                    }`}>
+                      🍹 {DEPT_STATUS_LABELS[order.bar_status] || 'Waiting'}
+                    </span>
+                  )}
+                </div>
+              )}
+              {/* Per-item list with individual status */}
+              <div className="space-y-1.5">
+                {items.map((item: any, idx: number) => {
+                  const dept = item.department || 'kitchen';
+                  const itemStatus = dept === 'bar' || dept === 'both' 
+                    ? (order.bar_status === 'ready' ? 'Ready' : order.bar_status === 'preparing' ? 'Preparing' : order.status)
+                    : (order.kitchen_status === 'ready' ? 'Ready' : order.kitchen_status === 'preparing' ? 'Preparing' : order.status);
+                  const finalStatus = order.status === 'Served' ? 'Served' : order.status === 'Paid' ? 'Paid' : order.status === 'Ready' ? 'Ready' : itemStatus;
+                  return (
+                    <div key={idx} className="flex items-center justify-between">
+                      <div className="flex-1 min-w-0">
+                        <span className="font-body text-sm text-foreground">{item.qty || item.quantity || 1}× {item.name}</span>
+                      </div>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <span className="font-body text-xs text-muted-foreground">₱{((item.price || 0) * (item.qty || item.quantity || 1)).toLocaleString()}</span>
+                        <span className={`font-body text-[10px] px-1.5 py-0.5 rounded ${
+                          finalStatus === 'Served' || finalStatus === 'Ready' ? 'text-green-400' :
+                          finalStatus === 'Preparing' ? 'text-amber-400' :
+                          finalStatus === 'Paid' ? 'text-muted-foreground' : 'text-blue-400'
+                        }`}>
+                          {finalStatus}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="border-t border-border pt-2 flex justify-between">
+                <span className="font-body text-sm text-foreground font-medium">Total</span>
+                <span className="font-body text-sm text-foreground font-medium">₱{(order.total || 0).toLocaleString()}</span>
+              </div>
+            </div>
+          );
+        })
+      )}
+    </div>
+  );
+};
+
+// --- Requests Tracker (Tours, Transport, Rentals) ---
+const REQUEST_STATUS_MAP: Record<string, { label: string; color: string }> = {
+  'pending': { label: 'Pending', color: 'bg-amber-500/20 text-amber-400 border-amber-500/30' },
+  'booked': { label: 'Pending', color: 'bg-amber-500/20 text-amber-400 border-amber-500/30' },
+  'confirmed': { label: 'Confirmed', color: 'bg-green-500/20 text-green-400 border-green-500/30' },
+  'cancelled': { label: 'Cancelled', color: 'bg-destructive/20 text-destructive border-destructive/30' },
+  'completed': { label: 'Completed', color: 'bg-muted text-muted-foreground border-border' },
+};
+
+const RequestsTrackerView = ({ session }: { session: GuestPortalSession }) => {
+  const qc = useQueryClient();
+
+  const { data: tours = [] } = useQuery({
+    queryKey: ['guest-my-tours', session.booking_id],
+    queryFn: async () => {
       const { data } = await supabase
-        .from('inventory_logs')
-        .select('*, ingredients(name, unit, department)')
-        .eq('reason', 'order_deduction')
-        .gte('created_at', since)
+        .from('guest_tours')
+        .select('*')
+        .eq('booking_id', session.booking_id)
         .order('created_at', { ascending: false });
       return data || [];
     },
   });
 
-  const burnMap = useMemo(() => {
-    const map: Record<string, BurnInfo> = {};
-    if (burnLogs.length === 0) return map;
-
-    const dates = burnLogs.map((l: any) => new Date(l.created_at));
-    const earliest = new Date(Math.min(...dates.map(d => d.getTime())));
-    const now = new Date();
-    const daySpan = Math.max(1, differenceInDays(now, earliest));
-
-    const totals: Record<string, number> = {};
-    burnLogs.forEach((l: any) => {
-      const id = l.ingredient_id;
-      totals[id] = (totals[id] || 0) + Math.abs(l.change_qty);
-    });
-
-    for (const [id, totalUsed] of Object.entries(totals)) {
-      const dailyRate = totalUsed / daySpan;
-      const ing = ingredients.find((i: any) => i.id === id);
-      const currentStock = ing ? (ing as any).current_stock : 0;
-      const daysRemaining = dailyRate > 0 ? currentStock / dailyRate : null;
-      const suggestedThreshold = Math.ceil(dailyRate * BUFFER_DAYS_DEFAULT);
-      const reorderQty = Math.max(0, Math.ceil((BUFFER_DAYS_DEFAULT * dailyRate) - currentStock));
-      map[id] = { dailyRate, daysRemaining, suggestedThreshold, reorderQty };
-    }
-
-    return map;
-  }, [burnLogs, ingredients]);
-
-  const usageMap: Record<string, { dishName: string; quantity: number }[]> = {};
-  recipeLinks.forEach((rl: any) => {
-    const dishName = rl.menu_items?.name || 'Unknown';
-    if (!usageMap[rl.ingredient_id]) usageMap[rl.ingredient_id] = [];
-    usageMap[rl.ingredient_id].push({ dishName, quantity: rl.quantity });
+  const { data: requests = [] } = useQuery({
+    queryKey: ['guest-my-requests', session.booking_id],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('guest_requests')
+        .select('*')
+        .eq('booking_id', session.booking_id)
+        .order('created_at', { ascending: false });
+      return data || [];
+    },
   });
 
-  const deptIngredients = selectedDept === 'all'
-    ? ingredients
-    : ingredients.filter((i: any) => i.department === selectedDept);
+  // Realtime subscriptions
+  useEffect(() => {
+    const channel = supabase
+      .channel('guest-requests-realtime')
+      .on('postgres_changes', {
+        event: '*', schema: 'public', table: 'guest_tours',
+        filter: `booking_id=eq.${session.booking_id}`,
+      }, () => { qc.invalidateQueries({ queryKey: ['guest-my-tours', session.booking_id] }); })
+      .on('postgres_changes', {
+        event: '*', schema: 'public', table: 'guest_requests',
+        filter: `booking_id=eq.${session.booking_id}`,
+      }, () => { qc.invalidateQueries({ queryKey: ['guest-my-requests', session.booking_id] }); })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [session.booking_id, qc]);
 
-  const totalValue = deptIngredients.reduce((sum: number, i: any) => sum + (i.current_stock * i.cost_per_unit), 0);
-  const missingCostCount = deptIngredients.filter((i: any) => i.cost_per_unit === 0).length;
-  const outOfStockCount = deptIngredients.filter((i: any) => i.current_stock <= 0).length;
-
-  const [search, setSearch] = useState('');
-  const [unitFilter, setUnitFilter] = useState('all');
-  const [stockFilter, setStockFilter] = useState('all');
-  const [editIng, setEditIng] = useState<any>(null);
-  const [form, setForm] = useState({
-    name: '', unit: 'grams', cost_per_unit: '', current_stock: '', low_stock_threshold: '',
-    department: 'kitchen' as Department,
-  });
-
-  const [showTransfer, setShowTransfer] = useState(false);
-  const [transfer, setTransfer] = useState({
-    fromDept: '' as string, toDept: '' as string, ingredientId: '', quantity: '', reason: '',
-  });
-
-  const [bufferDays, setBufferDays] = useState(BUFFER_DAYS_DEFAULT);
-
-  const openNew = () => {
-    setEditIng('new');
-    setForm({
-      name: '', unit: 'grams', cost_per_unit: '', current_stock: '', low_stock_threshold: '',
-      department: (selectedDept === 'all' ? 'kitchen' : selectedDept) as Department,
-    });
-  };
-
-  const openEdit = (ing: any) => {
-    setEditIng(ing);
-    setForm({
-      name: ing.name,
-      unit: ing.unit,
-      cost_per_unit: String(ing.cost_per_unit),
-      current_stock: String(ing.current_stock),
-      low_stock_threshold: String(ing.low_stock_threshold),
-      department: ing.department || 'kitchen',
-    });
-  };
-
-  const save = async () => {
-    const payload = {
-      name: form.name.trim(),
-      unit: form.unit,
-      cost_per_unit: parseFloat(form.cost_per_unit) || 0,
-      current_stock: parseFloat(form.current_stock) || 0,
-      low_stock_threshold: parseFloat(form.low_stock_threshold) || 0,
-      department: form.department,
-    };
-    if (!payload.name) return;
-
-    if (editIng === 'new') {
-      await supabase.from('ingredients').insert(payload);
-    } else {
-      const oldStock = editIng.current_stock;
-      if (payload.current_stock !== oldStock) {
-        await supabase.from('inventory_logs').insert({
-          ingredient_id: editIng.id,
-          change_qty: payload.current_stock - oldStock,
-          reason: 'manual_adjustment',
-          department: payload.department,
-        });
-      }
-      await supabase.from('ingredients').update(payload).eq('id', editIng.id);
-    }
-    setEditIng(null);
-    qc.invalidateQueries({ queryKey: ['ingredients'] });
-    toast.success('Ingredient saved');
-  };
-
-  const deleteIng = async (id: string) => {
-    await supabase.from('ingredients').delete().eq('id', id);
-    setEditIng(null);
-    qc.invalidateQueries({ queryKey: ['ingredients'] });
-    toast.success('Ingredient deleted');
-  };
-
-  const getUrgency = (ing: any): { level: 'critical' | 'warning' | 'ok'; daysLeft: number | null; dailyRate: number } => {
-    const burn = burnMap[ing.id];
-    if (burn && burn.daysRemaining !== null) {
-      if (ing.current_stock <= 0) return { level: 'critical', daysLeft: 0, dailyRate: burn.dailyRate };
-      if (burn.daysRemaining < 2) return { level: 'critical', daysLeft: burn.daysRemaining, dailyRate: burn.dailyRate };
-      if (burn.daysRemaining < 5) return { level: 'warning', daysLeft: burn.daysRemaining, dailyRate: burn.dailyRate };
-      return { level: 'ok', daysLeft: burn.daysRemaining, dailyRate: burn.dailyRate };
-    }
-    if (ing.current_stock <= 0) return { level: 'critical', daysLeft: null, dailyRate: 0 };
-    if (ing.low_stock_threshold > 0 && ing.current_stock < ing.low_stock_threshold) {
-      return { level: 'warning', daysLeft: null, dailyRate: 0 };
-    }
-    return { level: 'ok', daysLeft: null, dailyRate: 0 };
-  };
-
-  const urgentItems = useMemo(() => {
-    return deptIngredients
-      .map((ing: any) => ({ ing, urgency: getUrgency(ing) }))
-      .filter(({ urgency }) => urgency.level !== 'ok')
-      .sort((a, b) => {
-        if (a.urgency.level !== b.urgency.level) return a.urgency.level === 'critical' ? -1 : 1;
-        const aDays = a.urgency.daysLeft ?? 999;
-        const bDays = b.urgency.daysLeft ?? 999;
-        return aDays - bDays;
-      });
-  }, [deptIngredients, burnMap]);
-
-  const filtered = deptIngredients.filter((i: any) => {
-    if (search.trim() && !i.name.toLowerCase().includes(search.toLowerCase())) return false;
-    if (unitFilter !== 'all' && i.unit !== unitFilter) return false;
-    if (stockFilter === 'low') { if (getUrgency(i).level === 'ok') return false; }
-    if (stockFilter === 'out' && i.current_stock > 0) return false;
-    return true;
-  });
-
-  const downloadCSV = () => {
-    let csv = 'Name,Department,Unit,Cost Per Unit,Current Stock,Low Stock Threshold,Daily Burn Rate,Days Remaining,Status\n';
-    deptIngredients.forEach((i: any) => {
-      const u = getUrgency(i);
-      const status = u.level === 'critical' ? 'CRITICAL' : u.level === 'warning' ? 'LOW' : 'OK';
-      const daysLeft = u.daysLeft !== null ? u.daysLeft.toFixed(1) : 'N/A';
-      csv += `"${i.name}","${i.department || 'kitchen'}","${i.unit}",${i.cost_per_unit},${i.current_stock},${i.low_stock_threshold},${u.dailyRate.toFixed(2)},${daysLeft},${status}\n`;
-    });
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `inventory-${selectedDept}-${new Date().toISOString().slice(0, 10)}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
-  const editIngUsage = editIng && editIng !== 'new' ? (usageMap[editIng.id] || []) : [];
-
-  const autoSetThresholds = async () => {
-    const updates: { id: string; threshold: number }[] = [];
-    for (const ing of deptIngredients as any[]) {
-      const burn = burnMap[ing.id];
-      if (burn && burn.dailyRate > 0) {
-        const newThreshold = Math.ceil(burn.dailyRate * bufferDays);
-        if (newThreshold !== ing.low_stock_threshold) updates.push({ id: ing.id, threshold: newThreshold });
-      }
-    }
-    if (updates.length === 0) {
-      toast.info('No threshold changes needed â€” no consumption data for these ingredients');
-      return;
-    }
-    for (const u of updates) {
-      await supabase.from('ingredients').update({ low_stock_threshold: u.threshold }).eq('id', u.id);
-    }
-    qc.invalidateQueries({ queryKey: ['ingredients'] });
-    toast.success(`Updated thresholds for ${updates.length} ingredients (${bufferDays}-day buffer)`);
-  };
-
-  const filteredLogs = selectedDept === 'all'
-    ? consumptionLogs
-    : consumptionLogs.filter((log: any) => log.department === selectedDept || log.ingredients?.department === selectedDept);
-
-  const logsByDate: Record<string, Record<string, { name: string; total: number; unit: string }>> = {};
-  filteredLogs.forEach((log: any) => {
-    const date = format(new Date(log.created_at), 'yyyy-MM-dd');
-    const ingName = log.ingredients?.name || 'Unknown';
-    const ingUnit = log.ingredients?.unit || '';
-    if (!logsByDate[date]) logsByDate[date] = {};
-    if (!logsByDate[date][ingName]) logsByDate[date][ingName] = { name: ingName, total: 0, unit: ingUnit };
-    logsByDate[date][ingName].total += Math.abs(log.change_qty);
-  });
-
-  const transferIngredients = transfer.fromDept
-    ? ingredients.filter((i: any) => i.department === transfer.fromDept)
-    : [];
-
-  const executeTransfer = async () => {
-    const qty = parseFloat(transfer.quantity);
-    if (!transfer.fromDept || !transfer.toDept || !transfer.ingredientId || !qty || qty <= 0) {
-      toast.error('Please fill all transfer fields');
-      return;
-    }
-    if (transfer.fromDept === transfer.toDept) {
-      toast.error('Source and destination must be different');
-      return;
-    }
-    const sourceIng = ingredients.find((i: any) => i.id === transfer.ingredientId);
-    if (!sourceIng) return;
-    if (qty > (sourceIng as any).current_stock) {
-      toast.error('Insufficient stock to transfer');
-      return;
-    }
-
-    await supabase.from('ingredients').update({
-      current_stock: (sourceIng as any).current_stock - qty,
-    }).eq('id', sourceIng.id);
-
-    const { data: existing } = await supabase
-      .from('ingredients')
-      .select('*')
-      .eq('name', (sourceIng as any).name)
-      .eq('department', transfer.toDept)
-      .maybeSingle();
-
-    if (existing) {
-      await supabase.from('ingredients').update({
-        current_stock: existing.current_stock + qty,
-      }).eq('id', existing.id);
-    } else {
-      await supabase.from('ingredients').insert({
-        name: (sourceIng as any).name,
-        unit: (sourceIng as any).unit,
-        cost_per_unit: (sourceIng as any).cost_per_unit,
-        current_stock: qty,
-        low_stock_threshold: 0,
-        department: transfer.toDept,
-      });
-    }
-
-    const reason = transfer.reason ? `transfer: ${transfer.reason}` : 'transfer';
-    await supabase.from('inventory_logs').insert([
-      { ingredient_id: sourceIng.id, change_qty: -qty, reason, department: transfer.fromDept },
-      { ingredient_id: existing?.id || sourceIng.id, change_qty: qty, reason, department: transfer.toDept },
-    ]);
-
-    setShowTransfer(false);
-    setTransfer({ fromDept: '', toDept: '', ingredientId: '', quantity: '', reason: '' });
-    qc.invalidateQueries({ queryKey: ['ingredients'] });
-    toast.success(`Transferred ${qty} ${(sourceIng as any).unit} of ${(sourceIng as any).name}`);
-  };
-
-  const formatDays = (days: number | null) => {
-    if (days === null) return null;
-    if (days <= 0) return '0d';
-    if (days < 1) return `${Math.round(days * 24)}h`;
-    return `~${Math.round(days)}d`;
-  };
+  const hasAny = tours.length > 0 || requests.length > 0;
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto pb-24">
-      {/* Header & Actions */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <h2 className="font-serif-display text-2xl sm:text-3xl text-foreground">Inventory Management</h2>
-          <p className="font-body text-sm text-muted-foreground mt-1">Real-time stock tracking and automated thresholds</p>
-        </div>
-      </div>
-
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {/* Total Value */}
-        <div className="lux-card rounded-2xl p-5 border border-border/50 bg-card/40 backdrop-blur-md relative overflow-hidden group">
-          <div className="absolute -right-6 -top-6 w-24 h-24 bg-gradient-gold opacity-10 rounded-full blur-2xl group-hover:opacity-20 transition-opacity"></div>
-          <div className="flex justify-between items-start relative z-10">
-            <div>
-              <p className="font-body text-[10px] tracking-[0.2em] uppercase text-muted-foreground mb-1">Total Inventory Value</p>
-              <div className="flex items-baseline gap-2">
-                <span className="font-display text-3xl text-foreground tracking-tight">₱{totalValue.toLocaleString()}</span>
-              </div>
-            </div>
-            <div className="w-10 h-10 rounded-xl bg-gold/10 flex items-center justify-center border border-gold/20">
-              <Zap className="w-5 h-5 text-gold" />
-            </div>
-          </div>
-          {missingCostCount > 0 && (
-            <div className="mt-3 flex items-center gap-1.5 text-amber-400">
-              <AlertTriangle className="w-3 h-3" />
-              <span className="font-body text-[10px]">{missingCostCount} items missing cost</span>
-            </div>
-          )}
-        </div>
-
-        {/* Out of Stock */}
-        <button onClick={() => setStockFilter(stockFilter === 'out' ? 'all' : 'out')} className="text-left lux-card rounded-2xl p-5 border border-border/50 bg-card/40 backdrop-blur-md relative overflow-hidden group hover:border-red-500/30 transition-colors w-full">
-          <div className={`absolute -right-6 -top-6 w-24 h-24 rounded-full blur-2xl transition-opacity ${outOfStockCount > 0 ? 'bg-red-500 opacity-10 group-hover:opacity-20' : 'bg-foreground/5 opacity-5'}`}></div>
-          <div className="flex justify-between items-start relative z-10">
-            <div>
-              <p className="font-body text-[10px] tracking-[0.2em] uppercase text-muted-foreground mb-1">Out of Stock</p>
-              <div className="flex items-baseline gap-2">
-                <span className={`font-display text-3xl tracking-tight ${outOfStockCount > 0 ? 'text-red-400' : 'text-foreground'}`}>{outOfStockCount}</span>
-                <span className="font-body text-xs text-muted-foreground">items</span>
-              </div>
-            </div>
-            <div className={`w-10 h-10 rounded-xl flex items-center justify-center border ${outOfStockCount > 0 ? 'bg-red-500/10 border-red-500/20' : 'bg-secondary border-border'}`}>
-              <AlertTriangle className={`w-5 h-5 ${outOfStockCount > 0 ? 'text-red-400' : 'text-muted-foreground'}`} />
-            </div>
-          </div>
-          <div className="mt-3 flex items-center gap-1.5 text-muted-foreground">
-            <span className="font-body text-[10px]">Zero quantity available</span>
-          </div>
-        </button>
-
-        {/* Needs Attention */}
-        <button onClick={() => setStockFilter(stockFilter === 'low' ? 'all' : 'low')} className="text-left lux-card rounded-2xl p-5 border border-border/50 bg-card/40 backdrop-blur-md relative overflow-hidden group hover:border-amber-500/30 transition-colors w-full">
-          <div className={`absolute -right-6 -top-6 w-24 h-24 rounded-full blur-2xl transition-opacity ${urgentItems.length > 0 ? 'bg-amber-500 opacity-10 group-hover:opacity-20' : 'bg-foreground/5 opacity-5'}`}></div>
-          <div className="flex justify-between items-start relative z-10">
-            <div>
-              <p className="font-body text-[10px] tracking-[0.2em] uppercase text-muted-foreground mb-1">Needs Attention</p>
-              <div className="flex items-baseline gap-2">
-                <span className={`font-display text-3xl tracking-tight ${urgentItems.length > 0 ? 'text-amber-400' : 'text-foreground'}`}>{urgentItems.length}</span>
-                <span className="font-body text-xs text-muted-foreground">items</span>
-              </div>
-            </div>
-            <div className={`w-10 h-10 rounded-xl flex items-center justify-center border ${urgentItems.length > 0 ? 'bg-amber-500/10 border-amber-500/20' : 'bg-secondary border-border'}`}>
-              <Package className={`w-5 h-5 ${urgentItems.length > 0 ? 'text-amber-400' : 'text-muted-foreground'}`} />
-            </div>
-          </div>
-          <div className="mt-3 flex items-center gap-1.5 text-muted-foreground">
-            <span className="font-body text-[10px]">Below threshold or burning fast</span>
-          </div>
-        </button>
-      </div>
-
-      {/* Main Content Area */}
-      <div className="lux-card rounded-2xl border border-border/50 bg-card/40 backdrop-blur-md overflow-hidden">
-        {/* Navigation & Controls */}
-        <div className="p-4 border-b border-border/50 space-y-4">
-          <div className="flex flex-col lg:flex-row justify-between gap-4">
-            
-            {/* Department Pills */}
-            <div className="flex flex-wrap gap-2 pb-2 lg:pb-0">
-              <button
-                onClick={() => setSelectedDept('all')}
-                className={`whitespace-nowrap px-4 py-2 rounded-xl font-body text-xs border transition-all flex items-center justify-center ${
-                  selectedDept === 'all'
-                    ? 'bg-gradient-gold text-background border-gold/60 shadow-[0_0_12px_-3px_hsl(var(--gold)/0.5)]'
-                    : 'bg-secondary/50 text-foreground border-border/50 hover:border-gold/30'
-                }`}
-              >
-                All Departments
-              </button>
-              {DEPARTMENTS.map(dept => (
-                <button
-                  key={dept}
-                  onClick={() => setSelectedDept(dept)}
-                  className={`whitespace-nowrap px-4 py-2 rounded-xl font-body text-xs border transition-all flex items-center gap-2 ${
-                    selectedDept === dept
-                      ? 'bg-gradient-gold text-background border-gold/60 shadow-[0_0_12px_-3px_hsl(var(--gold)/0.5)]'
-                      : 'bg-secondary/50 text-foreground border-border/50 hover:border-gold/30'
-                  }`}
-                >
-                  <span className="text-sm">{DEPT_ICONS[dept]}</span>
-                  {DEPT_LABELS[dept]}
-                </button>
-              ))}
-            </div>
-
-            {/* View Tabs */}
-            <Tabs defaultValue="stock" className="w-full lg:w-[280px] shrink-0" onValueChange={(v) => {
-              document.querySelectorAll('[id$="-tab-content"]').forEach(el => el.classList.add('hidden'));
-              document.getElementById(`${v}-tab-content`)?.classList.remove('hidden');
-            }}>
-              <TabsList className="w-full bg-secondary/50 border border-border/40 rounded-xl p-1 h-auto">
-                <TabsTrigger value="stock"
-                  className="flex-1 font-body text-xs tracking-wider rounded-lg py-2 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:border data-[state=active]:border-border/60 data-[state=active]:shadow-sm">
-                  <Package className="w-3.5 h-3.5 mr-1.5" /> Stock
-                </TabsTrigger>
-                <TabsTrigger value="consumption"
-                  className="flex-1 font-body text-xs tracking-wider rounded-lg py-2 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:border data-[state=active]:border-border/60 data-[state=active]:shadow-sm">
-                  <BarChart3 className="w-3.5 h-3.5 mr-1.5" /> Usage Log
-                </TabsTrigger>
-              </TabsList>
-            </Tabs>
-          </div>
-
-          {/* Filters & Search */}
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="flex-1 min-w-[200px] relative">
-              <Input
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                placeholder="Search ingredients..."
-                className="w-full pl-9 bg-secondary/30 border-border/60 text-foreground font-body rounded-xl h-10"
-              />
-              <svg className="w-4 h-4 absolute left-3 top-3 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
-            </div>
-            <Select value={unitFilter} onValueChange={setUnitFilter}>
-              <SelectTrigger className="bg-secondary/30 border-border/60 text-foreground font-body w-[120px] rounded-xl h-10">
-                <SelectValue placeholder="All units" />
-              </SelectTrigger>
-              <SelectContent className="bg-card border-border">
-                <SelectItem value="all" className="font-body text-foreground">All units</SelectItem>
-                {UNITS.map(u => (
-                  <SelectItem key={u} value={u} className="font-body text-foreground">{u}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <button onClick={downloadCSV}
-              className="h-10 px-4 rounded-xl border border-border/60 bg-secondary/30 flex items-center justify-center text-foreground font-body text-xs hover:border-gold/30 hover:text-gold transition-colors shrink-0 gap-2">
-              <Download className="w-4 h-4" /> <span className="hidden sm:inline">Export</span>
-            </button>
-            {!readOnly && (
-              <>
-                <button onClick={autoSetThresholds} title="Auto-set thresholds from consumption data"
-                  className="h-10 px-4 rounded-xl border border-gold/30 bg-gold/10 flex items-center justify-center text-gold font-body text-xs hover:bg-gold/20 transition-colors shrink-0 gap-2">
-                  <Zap className="w-4 h-4" /> <span className="hidden sm:inline">Smart Thresholds</span>
-                </button>
-                <button onClick={() => setShowTransfer(true)}
-                  className="h-10 px-4 rounded-xl border border-border/60 bg-card/50 text-foreground font-body text-xs hover:border-gold/30 hover:bg-card transition-colors shrink-0 gap-2 flex items-center justify-center">
-                  <ArrowRightLeft className="w-4 h-4" /> <span className="hidden sm:inline">Transfer</span>
-                </button>
-                <button onClick={openNew}
-                  className="h-10 px-4 rounded-xl border border-gold/30 bg-gold/10 text-gold font-body text-xs hover:bg-gold/15 transition-colors shrink-0 gap-2 flex items-center justify-center shadow-[0_0_12px_-3px_hsl(var(--gold)/0.3)]">
-                  <Plus className="w-4 h-4" /> Add Item
-                </button>
-              </>
-            )}
-          </div>
-        </div>
-
-        <div className="p-0 relative min-h-[400px]">
-          <div className="block w-full" id="stock-tab-content">
-            
-            {/* Desktop Data Table */}
-            <div className="hidden md:block w-full overflow-x-auto pb-4">
-              <table className="w-full text-left border-collapse min-w-[800px]">
-                <thead>
-                  <tr className="border-b border-border/50 bg-secondary/20">
-                    <th className="py-3 px-5 font-body text-[10px] tracking-[0.15em] uppercase text-muted-foreground font-medium">Ingredient</th>
-                    <th className="py-3 px-5 font-body text-[10px] tracking-[0.15em] uppercase text-muted-foreground font-medium">Department</th>
-                    <th className="py-3 px-5 font-body text-[10px] tracking-[0.15em] uppercase text-muted-foreground font-medium w-48">Stock Level</th>
-                    <th className="py-3 px-5 font-body text-[10px] tracking-[0.15em] uppercase text-muted-foreground font-medium">Status / Action</th>
-                    <th className="py-3 px-5 font-body text-[10px] tracking-[0.15em] uppercase text-muted-foreground font-medium">Unit Cost</th>
-                    <th className="py-3 px-5 w-10"></th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border/40">
-                  {filtered.map((ing: any) => {
-                    const urgency = getUrgency(ing);
-                    const isOut = ing.current_stock <= 0;
-                    const burn = burnMap[ing.id];
-                    const stockPct = computeStockPct(ing, burn);
-                    const dishCount = (usageMap[ing.id] || []).length;
-                    const dept = ing.department || 'kitchen';
-                    const gradient = DEPT_GRADIENT[dept] || DEPT_GRADIENT.kitchen;
-
-                    const healthLabel = isOut ? 'Out of Stock' : urgency.level === 'critical' ? 'Critical' : urgency.level === 'warning' ? 'Low Stock' : 'Healthy';
-                    const healthColor = isOut || urgency.level === 'critical' ? 'text-red-400' : urgency.level === 'warning' ? 'text-amber-400' : 'text-emerald-400';
-                    const healthDot = isOut || urgency.level === 'critical' ? 'bg-red-400' : urgency.level === 'warning' ? 'bg-amber-400' : 'bg-emerald-400';
-                    const barColor = isOut || urgency.level === 'critical' ? 'bg-red-500' : urgency.level === 'warning' ? 'bg-amber-500' : 'bg-emerald-500';
-
-                    return (
-                      <tr key={ing.id} className="hover:bg-white/[0.02] transition-colors group cursor-pointer" onClick={() => openEdit(ing)}>
-                        <td className="py-3 px-5">
-                          <div className="flex items-center gap-3">
-                            <div className={`w-10 h-10 rounded-full bg-gradient-to-br ${gradient} flex items-center justify-center shrink-0 shadow-sm opacity-90 group-hover:opacity-100 transition-opacity`}>
-                              <span className="font-body text-[11px] text-white font-bold">{getInitials(ing.name)}</span>
-                            </div>
-                            <div>
-                              <p className="font-body text-sm font-medium text-foreground">{ing.name}</p>
-                              {dishCount > 0 && <p className="font-body text-[10px] text-muted-foreground mt-0.5">Used in {dishCount} {dishCount === 1 ? 'dish' : 'dishes'}</p>}
-                            </div>
-                          </div>
-                        </td>
-                        <td className="py-3 px-5">
-                          <span className="font-body text-xs text-muted-foreground flex items-center gap-1.5">
-                            <span className="text-[14px]">{DEPT_ICONS[dept]}</span> {DEPT_LABELS[dept]}
-                          </span>
-                        </td>
-                        <td className="py-3 px-5">
-                          <div className="w-40">
-                            <div className="flex items-center justify-between mb-1.5">
-                              <span className={`font-body text-xs font-medium ${healthColor}`}>{ing.current_stock.toLocaleString()} <span className="text-[10px] opacity-70">{ing.unit}</span></span>
-                              <span className="font-body text-[10px] text-muted-foreground">{stockPct}%</span>
-                            </div>
-                            <div className="w-full h-1.5 rounded-full bg-secondary/70 overflow-hidden">
-                              <div className={`h-full rounded-full transition-all ${barColor}`} style={{ width: `${stockPct}%` }} />
-                            </div>
-                          </div>
-                        </td>
-                        <td className="py-3 px-5">
-                          <div className="flex flex-col items-start gap-1">
-                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border font-body text-[10px] ${
-                              isOut || urgency.level === 'critical' ? 'border-red-500/40 text-red-400 bg-red-500/10' :
-                              urgency.level === 'warning' ? 'border-amber-500/40 text-amber-400 bg-amber-500/10' :
-                              'border-emerald-500/40 text-emerald-400 bg-emerald-500/10'
-                            }`}>
-                              <span className={`w-1.5 h-1.5 rounded-full ${healthDot}`} /> {healthLabel}
-                            </span>
-                            {urgency.daysLeft !== null && <span className="font-body text-[10px] text-muted-foreground ml-1">{formatDays(urgency.daysLeft)} left</span>}
-                          </div>
-                        </td>
-                        <td className="py-3 px-5">
-                          <p className="font-body text-xs text-foreground">{ing.cost_per_unit > 0 ? `₱${ing.cost_per_unit.toFixed(2)}` : '₱—'}</p>
-                          <p className="font-body text-[10px] text-muted-foreground">per {ing.unit}</p>
-                        </td>
-                        <td className="py-3 px-5 text-right">
-                          <div className="w-8 h-8 rounded-full border border-border/50 flex items-center justify-center group-hover:border-gold/40 group-hover:bg-gold/10 transition-all text-muted-foreground group-hover:text-gold">
-                            <ChevronRight className="w-4 h-4" />
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-              {filtered.length === 0 && (
-                <div className="py-16 text-center">
-                  <Package className="w-10 h-10 text-muted-foreground/30 mx-auto mb-3" />
-                  <p className="font-body text-sm text-muted-foreground">No ingredients found</p>
-                </div>
-              )}
-            </div>
-
-            {/* Mobile Card List */}
-            <div className="md:hidden space-y-2 p-4 pb-12">
-              {filtered.map((ing: any) => {
-                const urgency = getUrgency(ing);
-                const isOut = ing.current_stock <= 0;
-                const burn = burnMap[ing.id];
-                const stockPct = computeStockPct(ing, burn);
-                const dishCount = (usageMap[ing.id] || []).length;
-                const dept = ing.department || 'kitchen';
-                const gradient = DEPT_GRADIENT[dept] || DEPT_GRADIENT.kitchen;
-
-                const healthLabel = isOut ? 'Out of Stock' : urgency.level === 'critical' ? 'Critical' : urgency.level === 'warning' ? 'Low Stock' : 'Healthy';
-                const healthColor = isOut || urgency.level === 'critical' ? 'text-red-400' : urgency.level === 'warning' ? 'text-amber-400' : 'text-emerald-400';
-                const healthDot = isOut || urgency.level === 'critical' ? 'bg-red-400' : urgency.level === 'warning' ? 'bg-amber-400' : 'bg-emerald-400';
-                const barColor = isOut || urgency.level === 'critical' ? 'bg-red-500' : urgency.level === 'warning' ? 'bg-amber-500' : 'bg-emerald-500';
-
+    <div className="space-y-4">
+      <h2 className="font-display text-lg text-foreground">My Requests</h2>
+      {!hasAny ? (
+        <p className="font-body text-sm text-muted-foreground text-center py-8">No requests submitted yet.</p>
+      ) : (
+        <>
+          {tours.length > 0 && (
+            <div className="space-y-2">
+              <h3 className="font-body text-xs text-muted-foreground uppercase tracking-wider">Tours</h3>
+              {tours.map((t: any) => {
+                const st = REQUEST_STATUS_MAP[t.status] || REQUEST_STATUS_MAP['pending'];
                 return (
-                  <button key={ing.id} onClick={() => openEdit(ing)}
-                    className="w-full text-left rounded-2xl border border-border/50 bg-card/40 p-4 hover:border-gold/40 hover:bg-card/60 transition-all backdrop-blur-sm group lux-card">
-                    <div className="flex items-center gap-3 mb-3">
-                      <div className={`w-10 h-10 rounded-full bg-gradient-to-br ${gradient} flex items-center justify-center shrink-0 shadow-sm`}>
-                        <span className="font-body text-[11px] text-white font-bold">{getInitials(ing.name)}</span>
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between gap-2 mb-0.5">
-                          <p className="font-body text-sm font-medium text-foreground truncate">{ing.name}</p>
-                          <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full border font-body text-[9px] shrink-0 ${
-                            isOut || urgency.level === 'critical' ? 'border-red-500/40 text-red-400 bg-red-500/10' :
-                            urgency.level === 'warning' ? 'border-amber-500/40 text-amber-400 bg-amber-500/10' :
-                            'border-emerald-500/40 text-emerald-400 bg-emerald-500/10'
-                          }`}>
-                            <span className={`w-1 h-1 rounded-full ${healthDot}`} /> {healthLabel}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
-                          <span className="flex items-center gap-1"><span className="text-[12px]">{DEPT_ICONS[dept]}</span> {DEPT_LABELS[dept]}</span>
-                          {dishCount > 0 && <span>· {dishCount} {dishCount === 1 ? 'dish' : 'dishes'}</span>}
-                        </div>
-                      </div>
+                  <div key={t.id} className="bg-card border border-border rounded-lg p-3 space-y-1.5">
+                    <div className="flex justify-between items-start">
+                      <span className="font-body text-sm text-foreground font-medium">🗺️ {t.tour_name}</span>
+                      <span className={`font-body text-xs px-2 py-0.5 rounded-full border ${st.color}`}>{st.label}</span>
                     </div>
-                    <div className="bg-secondary/30 rounded-xl p-3 space-y-2 border border-border/30">
-                      <div className="flex justify-between items-end">
-                        <div>
-                          <p className="font-body text-xs text-foreground font-medium">{ing.current_stock.toLocaleString()} <span className="text-[10px] text-muted-foreground">{ing.unit}</span></p>
-                          {urgency.daysLeft !== null && <p className="font-body text-[9px] text-muted-foreground">{formatDays(urgency.daysLeft)} left</p>}
-                        </div>
-                        <div className="text-right">
-                          <p className="font-body text-xs text-foreground">{ing.cost_per_unit > 0 ? `₱${ing.cost_per_unit.toFixed(2)}` : '₱—'}</p>
-                          <p className="font-body text-[9px] text-muted-foreground">per {ing.unit}</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2 pt-1">
-                        <div className="flex-1 h-1.5 rounded-full bg-secondary/70 overflow-hidden">
-                          <div className={`h-full rounded-full transition-all ${barColor}`} style={{ width: `${stockPct}%` }} />
-                        </div>
-                        <span className="font-body text-[9px] text-muted-foreground shrink-0 w-6 text-right">{stockPct}%</span>
-                      </div>
+                    <div className="flex gap-3 font-body text-xs text-muted-foreground">
+                      <span>{t.tour_date}</span>
+                      <span>{t.pax} pax</span>
+                      <span>Pickup: {t.pickup_time}</span>
                     </div>
-                  </button>
+                    {t.price > 0 && <p className="font-body text-xs text-accent">₱{t.price.toLocaleString()}</p>}
+                  </div>
                 );
               })}
-              {filtered.length === 0 && (
-                <div className="py-12 text-center">
-                  <Package className="w-8 h-8 text-muted-foreground/30 mx-auto mb-2" />
-                  <p className="font-body text-sm text-muted-foreground">No ingredients found</p>
-                </div>
-              )}
             </div>
-          </div>
-
-          <div className="hidden w-full p-4" id="consumption-tab-content">
-            <div className="flex gap-2 mb-4">
-              {[7, 14, 30].map(d => (
-                <button key={d} onClick={() => setLogDays(d)}
-                  className={`flex-1 md:flex-none md:w-24 py-2 rounded-xl border font-body text-xs tracking-wider transition-all ${
-                    logDays === d
-                      ? 'bg-gradient-gold text-background border-gold/60 shadow-[0_0_12px_-3px_hsl(var(--gold)/0.5)]'
-                      : 'bg-card/50 border-border/50 text-foreground hover:border-gold/30'
-                  }`}>
-                  {d} Days
-                </button>
-              ))}
-            </div>
-
-            {Object.keys(logsByDate).length === 0 ? (
-              <div className="py-16 text-center">
-                <BarChart3 className="w-10 h-10 text-muted-foreground/30 mx-auto mb-3" />
-                <p className="font-body text-sm text-muted-foreground">No consumption data found for this period</p>
-              </div>
-            ) : (
-              <div className="space-y-4 pb-12">
-                {Object.entries(logsByDate)
-                  .sort(([a], [b]) => b.localeCompare(a))
-                  .map(([date, ings]) => (
-                    <div key={date} className="rounded-2xl border border-border/50 bg-card/30 overflow-hidden lux-card">
-                      <div className="bg-secondary/40 px-4 py-3 border-b border-border/50 flex items-center gap-2">
-                        <Calendar className="w-4 h-4 text-gold" />
-                        <span className="font-body text-sm text-foreground font-medium">
-                          {format(new Date(date), 'MMMM d, yyyy')}
-                        </span>
-                      </div>
-                      <div className="divide-y divide-border/30">
-                        {Object.values(ings)
-                          .sort((a, b) => b.total - a.total)
-                          .map((ing, idx) => (
-                            <div key={idx} className="flex justify-between items-center px-4 py-3 hover:bg-white/[0.02]">
-                              <div className="flex items-center gap-3">
-                                <div className="w-2 h-2 rounded-full bg-gold/50"></div>
-                                <span className="font-body text-sm text-foreground/90">{ing.name}</span>
-                              </div>
-                              <span className="font-body text-sm font-medium text-amber-400">-{ing.total.toLocaleString()} <span className="text-xs text-muted-foreground">{ing.unit}</span></span>
-                            </div>
-                          ))}
-                      </div>
+          )}
+          {requests.length > 0 && (
+            <div className="space-y-2">
+              <h3 className="font-body text-xs text-muted-foreground uppercase tracking-wider">Transport & Rentals</h3>
+              {requests.map((r: any) => {
+                const st = REQUEST_STATUS_MAP[r.status] || REQUEST_STATUS_MAP['pending'];
+                const icon = r.request_type === 'Transport' ? '🚗' : r.request_type === 'Rental' ? '🛵' : '📋';
+                return (
+                  <div key={r.id} className="bg-card border border-border rounded-lg p-3 space-y-1.5">
+                    <div className="flex justify-between items-start">
+                      <span className="font-body text-sm text-foreground font-medium">{icon} {r.request_type}</span>
+                      <span className={`font-body text-xs px-2 py-0.5 rounded-full border ${st.color}`}>{st.label}</span>
                     </div>
-                  ))}
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Edit / New Ingredient Dialog */}
-      <Dialog open={!!editIng} onOpenChange={() => setEditIng(null)}>
-        <DialogContent className="bg-card/95 backdrop-blur-xl border-border/50 max-w-sm max-h-[88vh] overflow-y-auto rounded-3xl p-6 shadow-2xl lux-card">
-          <DialogHeader>
-            <DialogTitle className="font-body text-sm tracking-[0.2em] uppercase text-foreground text-center">
-              {editIng === 'new' ? 'Add Ingredient' : 'Edit Ingredient'}
-            </DialogTitle>
-          </DialogHeader>
-
-          {/* Circular avatar with camera */}
-          <div className="flex justify-center pb-2 mt-4">
-            <div className="relative group cursor-pointer">
-              <div className={`w-24 h-24 rounded-full bg-gradient-to-br ${
-                DEPT_GRADIENT[form.department] || DEPT_GRADIENT.kitchen
-              } flex items-center justify-center border-4 border-card shadow-lg transition-transform group-hover:scale-105`}>
-                <span className="font-body text-xl text-white font-bold">
-                  {form.name ? getInitials(form.name) : '?'}
-                </span>
-              </div>
-              <div className="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-card border border-border/60 flex items-center justify-center shadow-sm text-muted-foreground group-hover:text-gold group-hover:border-gold/40 transition-colors">
-                <Camera className="w-3.5 h-3.5" />
-              </div>
-            </div>
-          </div>
-
-          <div className="space-y-5 mt-4">
-            <div>
-              <p className="font-body text-[10px] tracking-[0.25em] uppercase text-gold mb-3 flex items-center gap-2">
-                <span className="w-4 h-[1px] bg-gold/50"></span> Basic Information
-              </p>
-              <div className="space-y-4">
-                <div>
-                  <label className="font-body text-[10px] text-muted-foreground">Ingredient Name</label>
-                  <Input
-                    value={form.name}
-                    onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-                    placeholder="e.g. Fresh Salmon"
-                    className="bg-secondary/40 border-border/50 text-foreground font-body rounded-xl mt-1.5 h-11 focus-visible:ring-gold/30"
-                  />
-                </div>
-
-                <div>
-                  <label className="font-body text-[10px] text-muted-foreground mb-2 block">Department</label>
-                  <div className="grid grid-cols-2 gap-2">
-                    {DEPARTMENTS.map(dept => (
-                      <button
-                        key={dept}
-                        type="button"
-                        onClick={() => setForm(f => ({ ...f, department: dept }))}
-                        className={`px-3 py-2 rounded-xl font-body text-xs border transition-all flex items-center gap-2 ${
-                          form.department === dept
-                            ? 'bg-gradient-gold text-background border-gold/60 shadow-[0_0_12px_-3px_hsl(var(--gold)/0.4)]'
-                            : 'bg-secondary/40 text-foreground border-border/50 hover:border-gold/30'
-                        }`}
-                      >
-                        <span className="text-[14px]">{DEPT_ICONS[dept]}</span> {DEPT_LABELS[dept]}
-                      </button>
-                    ))}
+                    <p className="font-body text-xs text-muted-foreground">{r.details}</p>
+                    <p className="font-body text-[11px] text-muted-foreground">{new Date(r.created_at).toLocaleString()}</p>
                   </div>
-                </div>
-              </div>
+                );
+              })}
             </div>
-
-            <div>
-              <p className="font-body text-[10px] tracking-[0.25em] uppercase text-gold mb-3 flex items-center gap-2 mt-2">
-                <span className="w-4 h-[1px] bg-gold/50"></span> Metrics & Stock
-              </p>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="font-body text-[10px] text-muted-foreground">Current Stock</label>
-                  <Input
-                    value={form.current_stock}
-                    onChange={e => setForm(f => ({ ...f, current_stock: e.target.value }))}
-                    type="number"
-                    placeholder="0.0"
-                    className="bg-secondary/40 border-border/50 text-foreground font-body rounded-xl mt-1.5 h-11 focus-visible:ring-gold/30"
-                  />
-                </div>
-                <div>
-                  <label className="font-body text-[10px] text-muted-foreground">Unit</label>
-                  <Select value={form.unit} onValueChange={v => setForm(f => ({ ...f, unit: v }))}>
-                    <SelectTrigger className="bg-secondary/40 border-border/50 text-foreground font-body rounded-xl mt-1.5 h-11 focus-visible:ring-gold/30">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="bg-card border-border">
-                      {UNITS.map(u => (
-                        <SelectItem key={u} value={u} className="font-body">{u}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <label className="font-body text-[10px] text-muted-foreground">Low Stock Alert</label>
-                  <Input
-                    value={form.low_stock_threshold}
-                    onChange={e => setForm(f => ({ ...f, low_stock_threshold: e.target.value }))}
-                    type="number"
-                    placeholder="0.0"
-                    className="bg-secondary/40 border-border/50 text-foreground font-body rounded-xl mt-1.5 h-11 focus-visible:ring-gold/30"
-                  />
-                </div>
-                <div>
-                  <label className="font-body text-[10px] text-muted-foreground">Cost per Unit (₱)</label>
-                  <Input
-                    value={form.cost_per_unit}
-                    onChange={e => setForm(f => ({ ...f, cost_per_unit: e.target.value }))}
-                    type="number"
-                    placeholder="0.00"
-                    className="bg-secondary/40 border-border/50 text-foreground font-body rounded-xl mt-1.5 h-11 focus-visible:ring-gold/30"
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex gap-3 pt-6 mt-2 border-t border-border/30">
-            {editIng !== 'new' && (
-              <button
-                onClick={() => deleteIng(editIng.id)}
-                className="w-12 h-12 shrink-0 rounded-xl border border-red-500/40 bg-red-500/10 text-red-400 flex items-center justify-center hover:bg-red-500/20 transition-colors"
-                title="Delete Ingredient"
-              >
-                <Trash2 className="w-5 h-5" />
-              </button>
-            )}
-            <button
-              onClick={save}
-              className="flex-1 h-12 rounded-xl bg-gradient-gold text-background font-body text-sm tracking-wider shadow-[0_0_18px_-4px_hsl(var(--gold)/0.5)] hover:shadow-[0_0_24px_-4px_hsl(var(--gold)/0.6)] transition-all">
-              {editIng === 'new' ? 'Create Ingredient' : 'Save Changes'}
-            </button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Transfer Stock Dialog */}
-      <Dialog open={showTransfer} onOpenChange={setShowTransfer}>
-        <DialogContent className="bg-card/95 backdrop-blur-xl border-border/50 max-w-sm rounded-3xl p-6 shadow-2xl lux-card">
-          <DialogHeader>
-            <DialogTitle className="font-body text-sm tracking-[0.2em] uppercase text-foreground text-center flex justify-center items-center gap-2">
-              <div className="w-8 h-8 rounded-full bg-gold/10 flex items-center justify-center border border-gold/20">
-                <ArrowRightLeft className="w-4 h-4 text-gold" />
-              </div>
-              Transfer Stock
-            </DialogTitle>
-          </DialogHeader>
-
-          <p className="font-body text-xs text-muted-foreground text-center mt-2 mb-6">
-            Move inventory between departments (e.g., from Main Storage to Bar)
-          </p>
-
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-3 relative">
-              <div>
-                <Label className="font-body text-[10px] tracking-[0.2em] uppercase text-muted-foreground">From</Label>
-                <Select value={transfer.fromDept} onValueChange={v => setTransfer(t => ({ ...t, fromDept: v, ingredientId: '' }))}>
-                  <SelectTrigger className="bg-secondary/40 border-border/50 text-foreground font-body rounded-xl mt-1.5 h-11 focus-visible:ring-gold/30">
-                    <SelectValue placeholder="Source" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-card border-border">
-                    {DEPARTMENTS.map(d => (
-                      <SelectItem key={d} value={d} className="font-body text-xs">
-                        <span className="flex items-center gap-2"><span className="text-[14px]">{DEPT_ICONS[d]}</span> {DEPT_LABELS[d]}</span>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div className="absolute left-1/2 top-1/2 -translate-x-1/2 translate-y-1 w-8 h-8 rounded-full bg-card border border-border/50 flex items-center justify-center z-10 text-muted-foreground shadow-sm">
-                <ArrowRightLeft className="w-3.5 h-3.5" />
-              </div>
-
-              <div>
-                <Label className="font-body text-[10px] tracking-[0.2em] uppercase text-muted-foreground">To</Label>
-                <Select value={transfer.toDept} onValueChange={v => setTransfer(t => ({ ...t, toDept: v }))}>
-                  <SelectTrigger className="bg-secondary/40 border-border/50 text-foreground font-body rounded-xl mt-1.5 h-11 pl-6 focus-visible:ring-gold/30">
-                    <SelectValue placeholder="Dest" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-card border-border">
-                    {DEPARTMENTS.map(d => (
-                      <SelectItem key={d} value={d} className="font-body text-xs">
-                        <span className="flex items-center gap-2"><span className="text-[14px]">{DEPT_ICONS[d]}</span> {DEPT_LABELS[d]}</span>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div>
-              <Label className="font-body text-[10px] tracking-[0.2em] uppercase text-muted-foreground flex items-center gap-2 mt-2">
-                <span className="w-3 h-[1px] bg-gold/50"></span> Item to Transfer
-              </Label>
-              <Select value={transfer.ingredientId} onValueChange={v => setTransfer(t => ({ ...t, ingredientId: v }))}>
-                <SelectTrigger className="bg-secondary/40 border-border/50 text-foreground font-body rounded-xl mt-1.5 h-11 focus-visible:ring-gold/30" disabled={!transfer.fromDept}>
-                  <SelectValue placeholder={transfer.fromDept ? "Select ingredient..." : "Select source first"} />
-                </SelectTrigger>
-                <SelectContent className="bg-card border-border max-h-48">
-                  {transferIngredients.map((i: any) => (
-                    <SelectItem key={i.id} value={i.id} className="font-body text-xs text-foreground">
-                      {i.name} ({i.current_stock} {i.unit})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label className="font-body text-[10px] tracking-[0.2em] uppercase text-muted-foreground">Quantity</Label>
-                <Input
-                  value={transfer.quantity}
-                  onChange={e => setTransfer(t => ({ ...t, quantity: e.target.value }))}
-                  type="number"
-                  placeholder="0"
-                  className="bg-secondary/40 border-border/50 text-foreground font-body rounded-xl mt-1.5 h-11 focus-visible:ring-gold/30"
-                />
-              </div>
-              <div>
-                <Label className="font-body text-[10px] tracking-[0.2em] uppercase text-muted-foreground">Reason (Optional)</Label>
-                <Input
-                  value={transfer.reason}
-                  onChange={e => setTransfer(t => ({ ...t, reason: e.target.value }))}
-                  placeholder="e.g. Restock"
-                  className="bg-secondary/40 border-border/50 text-foreground font-body rounded-xl mt-1.5 h-11 focus-visible:ring-gold/30"
-                />
-              </div>
-            </div>
-
-            <button
-              onClick={executeTransfer}
-              className="w-full h-12 mt-4 rounded-xl bg-gradient-gold text-background font-body text-sm tracking-wider shadow-[0_0_18px_-4px_hsl(var(--gold)/0.5)] hover:shadow-[0_0_24px_-4px_hsl(var(--gold)/0.6)] transition-all flex items-center justify-center gap-2">
-              <ArrowRightLeft className="w-4 h-4" /> Execute Transfer
-            </button>
-          </div>
-        </DialogContent>
-      </Dialog>
+          )}
+        </>
+      )}
     </div>
   );
 };
 
-export default InventoryDashboard;
+// --- Bill ---
+const getBillIcon = (notes: string | null, txType: string) => {
+  const n = (notes || '').toLowerCase();
+  if (txType === 'payment') return <CreditCard className="w-4 h-4 text-green-400" />;
+  if (n.includes('food') || n.includes('order') || n.includes('kitchen') || n.includes('bar')) return <Utensils className="w-4 h-4 text-amber-400" />;
+  if (n.includes('tour') || n.includes('island')) return <Palmtree className="w-4 h-4 text-emerald-400" />;
+  if (n.includes('transport') || n.includes('van') || n.includes('transfer')) return <Truck className="w-4 h-4 text-blue-400" />;
+  if (n.includes('scooter') || n.includes('bike') || n.includes('rental')) return <Bike className="w-4 h-4 text-purple-400" />;
+  return <FileText className="w-4 h-4 text-muted-foreground" />;
+};
+
+const BillView = ({ session }: { session: GuestPortalSession }) => {
+  const qc = useQueryClient();
+  const [agreeing, setAgreeing] = useState(false);
+  const [contestOpen, setContestOpen] = useState(false);
+  const [disputeMessage, setDisputeMessage] = useState('');
+  const [submittingDispute, setSubmittingDispute] = useState(false);
+
+  // Check if guest already agreed
+  const { data: bookingData, refetch: refetchBooking } = useQuery({
+    queryKey: ['guest-bill-agreement', session.booking_id],
+    queryFn: async () => {
+      const { data } = await supabase.from('resort_ops_bookings').select('bill_agreed_at, room_rate, check_in, check_out, platform, paid_amount').eq('id', session.booking_id).maybeSingle();
+      return data as any;
+    },
+  });
+  const billAgreedAt = bookingData?.bill_agreed_at;
+  const bookingRoomRate = bookingData?.room_rate || 0;
+  const bookingCheckIn = bookingData?.check_in;
+  const bookingCheckOut = bookingData?.check_out;
+  const bookingNights = bookingCheckIn && bookingCheckOut
+    ? Math.max(1, Math.round((new Date(bookingCheckOut).getTime() - new Date(bookingCheckIn).getTime()) / 86400000))
+    : 0;
+
+  const handleAgree = async () => {
+    setAgreeing(true);
+    await (supabase.from('resort_ops_bookings') as any).update({ bill_agreed_at: new Date().toISOString() }).eq('id', session.booking_id);
+    await refetchBooking();
+    setAgreeing(false);
+    toast.success('Bill agreed! Reception has been notified.');
+  };
+
+  const { data: transactions = [] } = useQuery({
+    queryKey: ['guest-bill', session.booking_id, session.room_id],
+    queryFn: async () => {
+      // Fetch by booking_id OR by unit_id (for transactions missing booking_id)
+      const { data: byBooking } = await (supabase.from('room_transactions') as any)
+        .select('*')
+        .eq('booking_id', session.booking_id)
+        .order('created_at', { ascending: false });
+      const { data: byUnit } = await (supabase.from('room_transactions') as any)
+        .select('*')
+        .eq('unit_id', session.room_id)
+        .is('booking_id', null)
+        .order('created_at', { ascending: false });
+      const all = [...(byBooking || []), ...(byUnit || [])];
+      // Deduplicate by id
+      const seen = new Set<string>();
+      return all.filter((t: any) => { if (seen.has(t.id)) return false; seen.add(t.id); return true; });
+    },
+  });
+
+  // Unpaid F&B orders (not charged to room — active orders awaiting payment)
+  const { data: unpaidOrders = [] } = useQuery({
+    queryKey: ['guest-bill-unpaid-orders', session.room_id, session.room_name],
+    queryFn: async () => {
+      const { data: byRoom } = await supabase
+        .from('orders')
+        .select('id, total, service_charge, guest_name, status, payment_type, created_at, items')
+        .eq('room_id', session.room_id)
+        .in('status', ['New', 'Preparing', 'Ready', 'Served'])
+        .is('payment_type', null);
+      const { data: byLocation } = await supabase
+        .from('orders')
+        .select('id, total, service_charge, guest_name, status, payment_type, created_at, items')
+        .is('room_id', null)
+        .eq('location_detail', session.room_name)
+        .in('status', ['New', 'Preparing', 'Ready', 'Served'])
+        .is('payment_type', null);
+      const map = new Map<string, any>();
+      for (const o of [...(byRoom || []), ...(byLocation || [])]) map.set(o.id, o);
+      return Array.from(map.values());
+    },
+  });
+
+  // Room-charged F&B orders (charged to folio, tracked via room_transactions)
+  const { data: roomChargedOrders = [] } = useQuery({
+    queryKey: ['guest-bill-room-charged-orders', session.room_id, session.room_name],
+    queryFn: async () => {
+      const { data: byRoom } = await supabase
+        .from('orders')
+        .select('id, total, service_charge, guest_name, status, payment_type, created_at, items')
+        .eq('room_id', session.room_id)
+        .eq('payment_type', 'Charge to Room')
+        .in('status', ['Served']);
+      const { data: byLocation } = await supabase
+        .from('orders')
+        .select('id, total, service_charge, guest_name, status, payment_type, created_at, items')
+        .is('room_id', null)
+        .eq('location_detail', session.room_name)
+        .eq('payment_type', 'Charge to Room')
+        .in('status', ['Served']);
+      const map = new Map<string, any>();
+      for (const o of [...(byRoom || []), ...(byLocation || [])]) map.set(o.id, o);
+      return Array.from(map.values());
+    },
+  });
+
+  // Pending tours (includes confirmed — show immediately on bill)
+  const { data: pendingTours = [] } = useQuery({
+    queryKey: ['guest-bill-pending-tours', session.booking_id],
+    queryFn: async () => {
+      const { data } = await (supabase.from('tour_bookings') as any)
+        .select('*')
+        .eq('booking_id', session.booking_id)
+        .in('status', ['booked', 'pending', 'confirmed']);
+      return data || [];
+    },
+  });
+
+  // Completed tours
+  const { data: completedTours = [] } = useQuery({
+    queryKey: ['guest-bill-completed-tours', session.booking_id],
+    queryFn: async () => {
+      const { data } = await (supabase.from('tour_bookings') as any)
+        .select('*')
+        .eq('booking_id', session.booking_id)
+        .in('status', ['completed']);
+      return data || [];
+    },
+  });
+
+  // Pending requests (transport, rentals)
+  const { data: pendingRequests = [] } = useQuery({
+    queryKey: ['guest-bill-pending-requests', session.booking_id],
+    queryFn: async () => {
+      const { data } = await (supabase.from('guest_requests') as any)
+        .select('*')
+        .eq('booking_id', session.booking_id)
+        .eq('status', 'pending');
+      return data || [];
+    },
+  });
+
+  // Completed requests
+  const { data: completedRequests = [] } = useQuery({
+    queryKey: ['guest-bill-completed-requests', session.booking_id],
+    queryFn: async () => {
+      const { data } = await (supabase.from('guest_requests') as any)
+        .select('*')
+        .eq('booking_id', session.booking_id)
+        .eq('status', 'completed');
+      return data || [];
+    },
+  });
+
+  // Bill disputes
+  const { data: disputes = [] } = useQuery({
+    queryKey: ['guest-bill-disputes', session.booking_id],
+    queryFn: async () => {
+      const { data } = await (supabase.from('bill_disputes') as any)
+        .select('*')
+        .eq('booking_id', session.booking_id)
+        .order('created_at', { ascending: false });
+      return data || [];
+    },
+  });
+
+  const handleContestSubmit = async () => {
+    if (!disputeMessage.trim()) return;
+    setSubmittingDispute(true);
+    await (supabase.from('bill_disputes') as any).insert({
+      booking_id: session.booking_id,
+      room_id: session.room_id,
+      unit_name: session.room_name,
+      guest_name: session.guest_name,
+      guest_message: disputeMessage.trim(),
+    });
+    qc.invalidateQueries({ queryKey: ['guest-bill-disputes', session.booking_id] });
+    setSubmittingDispute(false);
+    setContestOpen(false);
+    setDisputeMessage('');
+    toast.success('Dispute submitted — reception has been notified.');
+  };
+
+  // Realtime subscription — broadened to catch all DELETE events
+  useEffect(() => {
+    const channel = supabase
+      .channel('guest-bill-realtime')
+      .on('postgres_changes', {
+        event: '*', schema: 'public', table: 'room_transactions',
+      }, () => {
+        qc.invalidateQueries({ queryKey: ['guest-bill', session.booking_id, session.room_id] });
+      })
+      .on('postgres_changes', {
+        event: '*', schema: 'public', table: 'orders',
+      }, () => {
+        qc.invalidateQueries({ queryKey: ['guest-bill-unpaid-orders', session.room_id, session.room_name] });
+        qc.invalidateQueries({ queryKey: ['guest-bill-room-charged-orders', session.room_id, session.room_name] });
+      })
+      .on('postgres_changes', {
+        event: '*', schema: 'public', table: 'tour_bookings',
+        filter: `booking_id=eq.${session.booking_id}`,
+      }, () => {
+        qc.invalidateQueries({ queryKey: ['guest-bill-pending-tours', session.booking_id] });
+        qc.invalidateQueries({ queryKey: ['guest-bill-completed-tours', session.booking_id] });
+      })
+      .on('postgres_changes', {
+        event: '*', schema: 'public', table: 'guest_requests',
+        filter: `booking_id=eq.${session.booking_id}`,
+      }, () => {
+        qc.invalidateQueries({ queryKey: ['guest-bill-pending-requests', session.booking_id] });
+        qc.invalidateQueries({ queryKey: ['guest-bill-completed-requests', session.booking_id] });
+      })
+      .on('postgres_changes', {
+        event: '*', schema: 'public', table: 'bill_disputes',
+        filter: `booking_id=eq.${session.booking_id}`,
+      }, () => {
+        qc.invalidateQueries({ queryKey: ['guest-bill-disputes', session.booking_id] });
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [session.booking_id, session.room_id, qc]);
+
+  const otaPlatforms = ['booking.com', 'airbnb', 'agoda', 'expedia', 'hostelworld', 'trip.com'];
+  const guestIsOta = bookingData?.platform && otaPlatforms.includes(bookingData.platform.toLowerCase());
+  // Filter out accommodation rows for OTA stays
+  const visibleTransactions = guestIsOta ? transactions.filter((t: any) => t.transaction_type !== 'accommodation') : transactions;
+  const charges = visibleTransactions.filter((t: any) => (t.total_amount || 0) > 0);
+  const payments = visibleTransactions.filter((t: any) => (t.total_amount || 0) < 0);
+  const totalCharges = charges.reduce((s: number, t: any) => s + (t.total_amount || 0), 0);
+  const totalPayments = Math.abs(payments.reduce((s: number, t: any) => s + (t.total_amount || 0), 0));
+  const unpaidOrdersTotal = unpaidOrders.reduce((s: number, o: any) => s + (o.total || 0) + (o.service_charge || 0), 0);
+  const unpaidOrdersSCTotal = unpaidOrders.reduce((s: number, o: any) => s + (o.service_charge || 0), 0);
+  const unpaidOrdersSubtotal = unpaidOrdersTotal - unpaidOrdersSCTotal;
+  // Completed tours/requests are now charged to the room ledger, so only count pending ones here
+  const activeToursTotal = pendingTours.reduce((s: number, t: any) => s + Number(t.price || 0), 0);
+  const activeRequestsTotal = pendingRequests.reduce((s: number, r: any) => s + Number(r.price || 0), 0);
+  const balance = totalCharges - totalPayments + unpaidOrdersTotal + activeToursTotal + activeRequestsTotal;
+  const hasPending = pendingTours.length > 0 || pendingRequests.length > 0;
+
+  // Separate room charges for clear display (accommodation already filtered for OTA)
+  const roomCharges = charges.filter((t: any) => ['accommodation', 'room_charge', 'adjustment', 'charge'].includes(t.transaction_type));
+
+  return (
+    <div className="space-y-4">
+      <h2 className="font-display text-lg text-foreground">My Bill</h2>
+
+      {/* Stay Details — hide for OTA stays since accommodation is prepaid */}
+      {bookingRoomRate > 0 && !guestIsOta && (
+        <div className="bg-card border border-border rounded-lg p-4 space-y-1">
+          <p className="font-display text-xs tracking-wider text-muted-foreground uppercase">Stay Details</p>
+          <div className="flex justify-between">
+            <span className="font-body text-sm text-muted-foreground">Room Rate</span>
+            <span className="font-body text-sm text-foreground">₱{bookingRoomRate.toLocaleString()}/night</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="font-body text-sm text-muted-foreground">Duration</span>
+            <span className="font-body text-sm text-foreground">{bookingNights} night{bookingNights !== 1 ? 's' : ''}</span>
+          </div>
+          <div className="flex justify-between border-t border-border pt-1">
+            <span className="font-body text-sm text-muted-foreground font-medium">Room Total</span>
+            <span className="font-body text-sm text-foreground font-medium">₱{(bookingRoomRate * bookingNights).toLocaleString()}</span>
+          </div>
+        </div>
+      )}
+      {guestIsOta && (
+        <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-3">
+          <p className="font-body text-sm text-emerald-400">✓ Accommodation paid via {bookingData.platform}</p>
+          <p className="font-body text-xs text-muted-foreground">Only incidentals (food, tours, etc.) appear on your bill below.</p>
+        </div>
+      )}
+
+      {/* Balance summary */}
+      <div className="bg-card border border-border rounded-lg p-4">
+        <div className="flex justify-between mb-2">
+          <span className="font-body text-sm text-muted-foreground">Total Charges</span>
+          <span className="font-body text-sm text-foreground">₱{totalCharges.toLocaleString()}</span>
+        </div>
+        {unpaidOrdersTotal > 0 && (
+          <>
+            <div className="flex justify-between mb-1">
+              <span className="font-body text-sm text-muted-foreground">F&B Subtotal</span>
+              <span className="font-body text-sm text-amber-400">₱{unpaidOrdersSubtotal.toLocaleString()}</span>
+            </div>
+            <div className="flex justify-between mb-2">
+              <span className="font-body text-sm text-muted-foreground">Service Charge (10%)</span>
+              <span className="font-body text-sm text-amber-400">₱{unpaidOrdersSCTotal.toLocaleString()}</span>
+            </div>
+          </>
+        )}
+        {activeToursTotal > 0 && (
+          <div className="flex justify-between mb-2">
+            <span className="font-body text-sm text-muted-foreground">Tours & Experiences</span>
+            <span className="font-body text-sm text-foreground">₱{activeToursTotal.toLocaleString()}</span>
+          </div>
+        )}
+        {activeRequestsTotal > 0 && (
+          <div className="flex justify-between mb-2">
+            <span className="font-body text-sm text-muted-foreground">Transport & Rentals</span>
+            <span className="font-body text-sm text-foreground">₱{activeRequestsTotal.toLocaleString()}</span>
+          </div>
+        )}
+        <div className="flex justify-between mb-2">
+          <span className="font-body text-sm text-muted-foreground">Total Payments</span>
+          <span className="font-body text-sm text-green-400">₱{totalPayments.toLocaleString()}</span>
+        </div>
+        <div className="border-t border-border pt-2 flex justify-between">
+          <span className="font-body text-sm text-foreground font-medium">Balance</span>
+          <span className={`font-body text-sm font-medium ${balance > 0 ? 'text-amber-400' : 'text-green-400'}`}>₱{balance.toLocaleString()}</span>
+        </div>
+      </div>
+
+      {/* Active F&B orders with itemized breakdown and status */}
+      {unpaidOrders.length > 0 && (
+        <div className="space-y-2">
+          <p className="font-display text-xs tracking-wider text-amber-400 uppercase flex items-center gap-1">
+            ⚠️ Active Orders
+          </p>
+          {unpaidOrders.map((o: any) => {
+            const items = Array.isArray(o.items) ? o.items : [];
+            const statusColor = o.status === 'New' ? 'bg-blue-500/20 text-blue-300 border-blue-500/30'
+              : o.status === 'Preparing' ? 'bg-amber-500/20 text-amber-300 border-amber-500/30'
+              : o.status === 'Ready' ? 'bg-green-500/20 text-green-300 border-green-500/30'
+              : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30';
+            const statusDesc = o.status === 'New' ? 'Order received'
+              : o.status === 'Preparing' ? 'Being prepared by kitchen'
+              : o.status === 'Ready' ? 'Ready for pickup'
+              : 'Served ✓';
+            const orderTotal = Number(o.total || 0) + Number(o.service_charge || 0);
+            return (
+              <div key={o.id} className="bg-card border border-border p-3 rounded-lg space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Utensils className="w-4 h-4 text-amber-400" />
+                    <span className="font-body text-xs text-muted-foreground">
+                      {new Date(o.created_at).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <Badge variant="outline" className={`text-[10px] ${statusColor}`}>{o.status}</Badge>
+                  </div>
+                </div>
+                <p className="font-body text-[11px] text-muted-foreground pl-6">{statusDesc}</p>
+                {/* Itemized contents */}
+                <div className="space-y-0.5 pl-6">
+                  {items.map((i: any, idx: number) => (
+                    <div key={idx} className="flex justify-between">
+                      <span className="font-body text-sm text-foreground">{i.qty || 1}× {i.name}</span>
+                      <span className="font-body text-xs text-muted-foreground">₱{((i.price || 0) * (i.qty || 1)).toLocaleString()}</span>
+                    </div>
+                  ))}
+                </div>
+                {/* SC breakdown */}
+                <div className="pl-6 border-t border-border/50 pt-1 space-y-0.5">
+                  <div className="flex justify-between">
+                    <span className="font-body text-[11px] text-muted-foreground">Subtotal</span>
+                    <span className="font-body text-[11px] text-muted-foreground">₱{Number(o.total || 0).toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="font-body text-[11px] text-muted-foreground">Service Charge (10%)</span>
+                    <span className="font-body text-[11px] text-muted-foreground">₱{Number(o.service_charge || 0).toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="font-body text-xs text-foreground font-medium">Total</span>
+                    <span className="font-body text-xs text-amber-400 font-medium">₱{orderTotal.toLocaleString()}</span>
+                  </div>
+                </div>
+                {o.status === 'Served' && (
+                  <div className="pl-6">
+                    <Badge variant="outline" className="text-[10px] border-amber-500/50 text-amber-400">Pay at Counter</Badge>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Room-Charged F&B Orders */}
+      {roomChargedOrders.length > 0 && (
+        <div className="space-y-2">
+          <p className="font-display text-xs tracking-wider text-blue-400 uppercase flex items-center gap-1">
+            🏠 Room Charges
+          </p>
+          {roomChargedOrders.map((o: any) => {
+            const items = Array.isArray(o.items) ? o.items : [];
+            const orderTotal = Number(o.total || 0) + Number(o.service_charge || 0);
+            return (
+              <div key={o.id} className="bg-card border border-blue-500/20 p-3 rounded-lg space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Utensils className="w-4 h-4 text-blue-400" />
+                    <span className="font-body text-xs text-muted-foreground">
+                      {new Date(o.created_at).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
+                    </span>
+                  </div>
+                  <Badge variant="outline" className="text-[10px] border-blue-500/40 text-blue-400">Room Charge</Badge>
+                </div>
+                <div className="space-y-0.5 pl-6">
+                  {items.map((i: any, idx: number) => (
+                    <div key={idx} className="flex justify-between">
+                      <span className="font-body text-sm text-foreground">{i.qty || 1}× {i.name}</span>
+                      <span className="font-body text-xs text-muted-foreground">₱{((i.price || 0) * (i.qty || 1)).toLocaleString()}</span>
+                    </div>
+                  ))}
+                </div>
+                <div className="pl-6 border-t border-border/50 pt-1">
+                  <div className="flex justify-between">
+                    <span className="font-body text-xs text-foreground font-medium">Total</span>
+                    <span className="font-body text-xs text-blue-400 font-medium">₱{orderTotal.toLocaleString()}</span>
+                  </div>
+                </div>
+                <div className="pl-6">
+                  <Badge variant="outline" className="text-[10px] border-blue-500/50 text-blue-400">Charged to Room</Badge>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {hasPending && (
+        <div className="space-y-2">
+          <p className="font-display text-xs tracking-wider text-muted-foreground uppercase flex items-center gap-1">
+            <Loader2 className="w-3 h-3 animate-spin" /> Pending Confirmation
+          </p>
+          {pendingTours.map((t: any) => (
+            <div key={t.id} className="bg-secondary/50 border border-dashed border-border p-3 rounded flex justify-between items-start opacity-70">
+              <div className="flex items-start gap-2">
+                <Palmtree className="w-4 h-4 text-emerald-400 mt-0.5" />
+                <div>
+                  <p className="font-body text-sm text-foreground">{t.tour_name}</p>
+                  <p className="font-body text-xs text-muted-foreground">{t.tour_date} · {t.pax} pax{t.pickup_time ? ` · Pickup ${t.pickup_time}` : ''}</p>
+                </div>
+              </div>
+              <div className="text-right">
+                <span className="font-body text-sm text-muted-foreground">₱{(t.price || 0).toLocaleString()}</span>
+                <Badge variant="outline" className="ml-2 text-[10px]">Pending</Badge>
+              </div>
+            </div>
+          ))}
+          {pendingRequests.map((r: any) => (
+            <div key={r.id} className="bg-secondary/50 border border-dashed border-border p-3 rounded flex justify-between items-start opacity-70">
+              <div className="flex items-start gap-2">
+                {r.request_type?.toLowerCase().includes('transport') ? <Truck className="w-4 h-4 text-blue-400 mt-0.5" /> : <Bike className="w-4 h-4 text-purple-400 mt-0.5" />}
+                <div>
+                  <p className="font-body text-sm text-foreground">{r.request_type}</p>
+                  <p className="font-body text-xs text-muted-foreground">{r.details}</p>
+                </div>
+              </div>
+              <Badge variant="outline" className="text-[10px]">Pending</Badge>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Completed Tours & Experiences */}
+      {(completedTours.length > 0 || completedRequests.length > 0) && (
+        <div className="space-y-2">
+          <p className="font-display text-xs tracking-wider text-emerald-400 uppercase flex items-center gap-1">
+            <CheckCircle2 className="w-3 h-3" /> Completed Experiences
+          </p>
+          {completedTours.map((t: any) => (
+            <div key={t.id} className="bg-card border border-emerald-500/20 p-3 rounded-lg flex justify-between items-start">
+              <div className="flex items-start gap-2">
+                <Palmtree className="w-4 h-4 text-emerald-400 mt-0.5" />
+                <div>
+                  <p className="font-body text-sm text-foreground">{t.tour_name}</p>
+                  <p className="font-body text-xs text-muted-foreground">{t.tour_date} · {t.pax} pax{t.pickup_time ? ` · Pickup ${t.pickup_time}` : ''}</p>
+                </div>
+              </div>
+              <div className="text-right">
+                <span className="font-body text-sm text-foreground">₱{(t.price || 0).toLocaleString()}</span>
+                <Badge variant="outline" className="ml-2 text-[10px] bg-emerald-500/20 text-emerald-300 border-emerald-500/30">Charged to Room</Badge>
+              </div>
+            </div>
+          ))}
+          {completedRequests.map((r: any) => (
+            <div key={r.id} className="bg-card border border-emerald-500/20 p-3 rounded-lg flex justify-between items-start">
+              <div className="flex items-start gap-2">
+                {r.request_type?.toLowerCase().includes('transport') ? <Truck className="w-4 h-4 text-blue-400 mt-0.5" /> : <Bike className="w-4 h-4 text-purple-400 mt-0.5" />}
+                <div>
+                  <p className="font-body text-sm text-foreground">{r.request_type}</p>
+                  <p className="font-body text-xs text-muted-foreground">{r.details}</p>
+                </div>
+              </div>
+              <Badge variant="outline" className="text-[10px] bg-emerald-500/20 text-emerald-300 border-emerald-500/30">Charged to Room</Badge>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Room Charges — accommodation, adjustments, etc. */}
+      {roomCharges.length > 0 && (
+        <div className="space-y-2">
+          <p className="font-display text-xs tracking-wider text-muted-foreground uppercase flex items-center gap-1">
+            🏠 Room Charges
+          </p>
+          {roomCharges.map((t: any) => (
+            <div key={t.id} className="bg-primary/5 border border-primary/20 p-3 rounded-lg flex justify-between items-start">
+              <div className="flex items-start gap-2">
+                <CreditCard className="w-4 h-4 text-primary mt-0.5" />
+                <div>
+                  <p className="font-body text-sm text-foreground">
+                    {t.notes || t.transaction_type.replace(/_/g, ' ')}
+                  </p>
+                  <p className="font-body text-xs text-muted-foreground">
+                    {new Date(t.created_at).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
+                    {t.staff_name ? ` · ${t.staff_name}` : ''}
+                  </p>
+                </div>
+              </div>
+              <span className="font-body text-sm font-medium text-foreground">+₱{Math.abs(t.total_amount || 0).toLocaleString()}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Payments & other transactions */}
+      <div className="space-y-2">
+        {payments.length > 0 && (
+          <p className="font-display text-xs tracking-wider text-muted-foreground uppercase">Payments</p>
+        )}
+        {payments.map((t: any) => (
+          <div key={t.id} className="bg-secondary p-3 rounded-lg flex justify-between items-start">
+            <div className="flex items-start gap-2">
+              {getBillIcon(t.notes, t.transaction_type)}
+              <div>
+                <p className="font-body text-sm text-foreground">
+                  {t.payment_method}{t.notes ? ` — ${t.notes}` : ''}
+                </p>
+                <p className="font-body text-xs text-muted-foreground">
+                  {new Date(t.created_at).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
+                  {t.staff_name ? ` · ${t.staff_name}` : ''}
+                </p>
+              </div>
+            </div>
+            <span className="font-body text-sm font-medium text-green-400">-₱{Math.abs(t.total_amount || 0).toLocaleString()}</span>
+          </div>
+        ))}
+        {transactions.length === 0 && !hasPending && unpaidOrders.length === 0 && <p className="font-body text-sm text-muted-foreground text-center">No transactions yet.</p>}
+      </div>
+
+      {/* Disputes */}
+      {disputes.length > 0 && (
+        <div className="space-y-2">
+          <p className="font-display text-xs tracking-wider text-amber-400 uppercase flex items-center gap-1">
+            <AlertTriangle className="w-3 h-3" /> Bill Disputes
+          </p>
+          {disputes.map((d: any) => (
+            <div key={d.id} className={`border rounded-lg p-3 space-y-2 ${d.status === 'open' ? 'border-amber-500/40 bg-amber-500/5' : 'border-border'}`}>
+              <div className="flex items-center justify-between">
+                <Badge variant="outline" className={`text-[10px] ${d.status === 'open' ? 'bg-amber-500/20 text-amber-300 border-amber-500/30' : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'}`}>
+                  {d.status === 'open' ? 'Under Review' : d.status === 'resolved' ? 'Resolved' : 'Dismissed'}
+                </Badge>
+                <span className="font-body text-[10px] text-muted-foreground">{new Date(d.created_at).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</span>
+              </div>
+              <p className="font-body text-sm text-foreground">{d.guest_message}</p>
+              {d.staff_response && (
+                <div className="bg-secondary rounded p-2 space-y-1">
+                  <p className="font-body text-[10px] text-muted-foreground">Response from {d.responded_by}:</p>
+                  <p className="font-body text-sm text-foreground">{d.staff_response}</p>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Bill Agreement */}
+      {(transactions.length > 0 || unpaidOrders.length > 0) && (
+        <div className="border border-border rounded-lg p-4 space-y-3">
+          {billAgreedAt ? (
+            <div className="flex items-center gap-2 text-emerald-400">
+              <CheckCircle2 className="w-5 h-5" />
+              <div>
+                <p className="font-display text-sm">Bill Reviewed & Agreed</p>
+                <p className="font-body text-xs text-muted-foreground">{new Date(billAgreedAt).toLocaleString()}</p>
+              </div>
+            </div>
+          ) : (
+            <>
+              {disputes.some((d: any) => d.status === 'open') ? (
+                <p className="font-body text-xs text-amber-400">Your dispute is under review. You can agree once it's resolved.</p>
+              ) : (
+                <>
+                  <p className="font-body text-xs text-muted-foreground">By tapping below, you confirm that you have reviewed all charges and agree to this bill.</p>
+                  <Button onClick={handleAgree} disabled={agreeing} className="w-full font-display tracking-wider h-12">
+                    {agreeing ? 'Submitting...' : '✓ I Agree to This Bill'}
+                  </Button>
+                </>
+              )}
+              {!disputes.some((d: any) => d.status === 'open') && (
+                <Button variant="outline" onClick={() => setContestOpen(true)} className="w-full font-display tracking-wider h-12 border-amber-500/40 text-amber-400 hover:bg-amber-500/10">
+                  ⚠️ Contest This Bill
+                </Button>
+              )}
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Contest Modal */}
+      {contestOpen && (
+        <div className="border border-amber-500/40 rounded-lg p-4 space-y-3 bg-amber-500/5">
+          <p className="font-display text-sm text-foreground">Contest This Bill</p>
+          <p className="font-body text-xs text-muted-foreground">Describe which charges are incorrect and why. Reception will review and respond.</p>
+          <Textarea
+            value={disputeMessage}
+            onChange={e => setDisputeMessage(e.target.value)}
+            placeholder="e.g. I was charged for Pancakes but never received them..."
+            className="bg-secondary border-border text-foreground min-h-[100px] text-base"
+          />
+          <div className="flex gap-2">
+            <Button onClick={handleContestSubmit} disabled={submittingDispute || !disputeMessage.trim()} className="flex-1 font-display tracking-wider h-10">
+              {submittingDispute ? 'Submitting...' : 'Submit Dispute'}
+            </Button>
+            <Button variant="outline" onClick={() => { setContestOpen(false); setDisputeMessage(''); }} className="font-display tracking-wider h-10">
+              Cancel
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+export default GuestPortal;
