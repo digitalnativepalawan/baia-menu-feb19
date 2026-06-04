@@ -1,5 +1,22 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import Anthropic from "https://esm.sh/@anthropic-ai/sdk";
+
+async function callClaude(prompt: string, maxTokens = 700): Promise<string> {
+  const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${Deno.env.get("OPENROUTER_API_KEY")}`,
+      "Content-Type": "application/json",
+      "HTTP-Referer": "https://paghxagqnaisxesmhnwj.supabase.co",
+    },
+    body: JSON.stringify({
+      model: "anthropic/claude-haiku-4-5",
+      messages: [{ role: "user", content: prompt }],
+      max_tokens: maxTokens,
+    }),
+  });
+  const data = await response.json();
+  return data.choices?.[0]?.message?.content ?? "";
+}
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -67,13 +84,7 @@ function routeRequest(requestType: string, details: string): { group: string; la
 // ── Claude draft for complex requests ────────────────────────────────────────
 
 async function draftResponse(request: any): Promise<string> {
-  const anthropic = new Anthropic({ apiKey: Deno.env.get("ANTHROPIC_API_KEY")! });
-  const msg = await anthropic.messages.create({
-    model:      "claude-haiku-4-5-20251001",
-    max_tokens: 200,
-    messages: [{
-      role: "user",
-      content: `You are the guest concierge AI at Baia Resort in San Vicente, Palawan.
+  const prompt = `You are the guest concierge AI at Baia Resort in San Vicente, Palawan.
 
 Draft a brief staff action note (not a guest-facing message) for handling this guest request.
 Plain text. Maximum 60 words. Start with the action verb. Be specific.
@@ -82,10 +93,8 @@ Guest: ${request.guest_name ?? "unknown"}
 Room: ${request.room ?? "unknown"}
 Request type: ${request.request_type ?? "general"}
 Details: ${request.details ?? "none"}
-Age: ${request.age_hours ?? 0} hours old`,
-    }],
-  });
-  return (msg.content[0] as any).text ?? "";
+Age: ${request.age_hours ?? 0} hours old`;
+  return await callClaude(prompt, 200);
 }
 
 // ── Main processor ────────────────────────────────────────────────────────────
@@ -226,13 +235,7 @@ Deno.serve(async (req) => {
     const totalOpen = requests.length;
     const hadActivity = routed.length > 0 || escalated.length > 0 || complaints.length > 0;
     if (totalOpen > 0 && hadActivity) {
-      const anthropic = new Anthropic({ apiKey: Deno.env.get("ANTHROPIC_API_KEY")! });
-      const msg = await anthropic.messages.create({
-        model:      "claude-haiku-4-5-20251001",
-        max_tokens: 300,
-        messages: [{
-          role: "user",
-          content: `You are the guest concierge coordinator for Baia Resort.
+      const summary = await callClaude(`You are the guest concierge coordinator for Baia Resort.
 
 Summarize the current guest request status for the manager. Plain text only. No markdown. Bullets use "•".
 Start with "🛎️ CONCIERGE STATUS" on line 1. Maximum 150 words.
@@ -248,11 +251,7 @@ Data:
     return acc;
   }, {})
 )}
-- Oldest unresolved: ${requests[0] ? `${requests[0].age_hours}h — ${requests[0].request_type} (${requests[0].room})` : "none"}`,
-        }],
-      });
-
-      const summary = (msg.content[0] as any).text ?? "";
+- Oldest unresolved: ${requests[0] ? `${requests[0].age_hours}h — ${requests[0].request_type} (${requests[0].room})` : "none"}`, 300);
       await sendTelegram(supabase, "managers", summary);
     }
 
