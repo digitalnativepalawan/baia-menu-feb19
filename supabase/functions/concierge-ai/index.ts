@@ -84,13 +84,7 @@ function routeRequest(requestType: string, details: string): { group: string; la
 // ── Claude draft for complex requests ────────────────────────────────────────
 
 async function draftResponse(request: any): Promise<string> {
-  const anthropic = new Anthropic({ apiKey: Deno.env.get("ANTHROPIC_API_KEY")! });
-  const msg = await anthropic.messages.create({
-    model:      "claude-haiku-4-5-20251001",
-    max_tokens: 200,
-    messages: [{
-      role: "user",
-      content: `You are the guest concierge AI at Baia Resort in San Vicente, Palawan.
+  const prompt = `You are the guest concierge AI at Baia Resort in San Vicente, Palawan.
 
 Draft a brief staff action note (not a guest-facing message) for handling this guest request.
 Plain text. Maximum 60 words. Start with the action verb. Be specific.
@@ -99,10 +93,8 @@ Guest: ${request.guest_name ?? "unknown"}
 Room: ${request.room ?? "unknown"}
 Request type: ${request.request_type ?? "general"}
 Details: ${request.details ?? "none"}
-Age: ${request.age_hours ?? 0} hours old`,
-    }],
-  });
-  return (msg.content[0] as any).text ?? "";
+Age: ${request.age_hours ?? 0} hours old`;
+  return await callClaude(prompt, 200);
 }
 
 // ── Main processor ────────────────────────────────────────────────────────────
