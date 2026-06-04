@@ -260,24 +260,14 @@ async function detectIssues(supabase: any): Promise<Issue[]> {
 async function generateSummary(issues: Issue[]): Promise<string> {
   if (issues.length === 0) return "✅ Reservations healthy. No issues detected.";
 
-  const anthropic = new Anthropic({ apiKey: Deno.env.get("ANTHROPIC_API_KEY")! });
-  const msg = await anthropic.messages.create({
-    model:      "claude-haiku-4-5-20251001",
-    max_tokens: 400,
-    messages: [{
-      role: "user",
-      content: `You are the reservations coordinator for Baia Resort.
+  return await callClaude(`You are the reservations coordinator for Baia Resort.
 
 Summarize these booking issues for the resort owner. Plain text only. No markdown.
 Bullets use "•". Be direct. Maximum 200 words. Group by severity.
 Start with "📋 RESERVATIONS CHECK" on the first line.
 
 Issues:
-${JSON.stringify(issues, null, 2)}`,
-    }],
-  });
-
-  return (msg.content[0] as any).text ?? "";
+${JSON.stringify(issues, null, 2)}`, 400);
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
