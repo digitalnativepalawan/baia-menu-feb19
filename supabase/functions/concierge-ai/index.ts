@@ -1,5 +1,22 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import Anthropic from "https://esm.sh/@anthropic-ai/sdk";
+
+async function callClaude(prompt: string, maxTokens = 700): Promise<string> {
+  const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${Deno.env.get("OPENROUTER_API_KEY")}`,
+      "Content-Type": "application/json",
+      "HTTP-Referer": "https://paghxagqnaisxesmhnwj.supabase.co",
+    },
+    body: JSON.stringify({
+      model: "anthropic/claude-haiku-4-5",
+      messages: [{ role: "user", content: prompt }],
+      max_tokens: maxTokens,
+    }),
+  });
+  const data = await response.json();
+  return data.choices?.[0]?.message?.content ?? "";
+}
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
