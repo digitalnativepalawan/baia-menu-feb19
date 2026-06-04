@@ -323,14 +323,7 @@ Deno.serve(async (req) => {
     const supabase = sb();
     const data     = await fetchBriefData(supabase, type);
 
-    const anthropic = new Anthropic({ apiKey: Deno.env.get("ANTHROPIC_API_KEY")! });
-    const msg = await anthropic.messages.create({
-      model:      "claude-haiku-4-5-20251001",
-      max_tokens: 700,
-      messages:   [{ role: "user", content: buildPrompt(data) }],
-    });
-
-    const brief = (msg.content[0] as any).text ?? "";
+    const brief = await callClaude(buildPrompt(data), 700);
 
     await sendTelegram(supabase, "managers", brief);
 
