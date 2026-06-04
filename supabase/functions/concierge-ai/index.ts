@@ -235,13 +235,7 @@ Deno.serve(async (req) => {
     const totalOpen = requests.length;
     const hadActivity = routed.length > 0 || escalated.length > 0 || complaints.length > 0;
     if (totalOpen > 0 && hadActivity) {
-      const anthropic = new Anthropic({ apiKey: Deno.env.get("ANTHROPIC_API_KEY")! });
-      const msg = await anthropic.messages.create({
-        model:      "claude-haiku-4-5-20251001",
-        max_tokens: 300,
-        messages: [{
-          role: "user",
-          content: `You are the guest concierge coordinator for Baia Resort.
+      const summary = await callClaude(`You are the guest concierge coordinator for Baia Resort.
 
 Summarize the current guest request status for the manager. Plain text only. No markdown. Bullets use "•".
 Start with "🛎️ CONCIERGE STATUS" on line 1. Maximum 150 words.
@@ -257,11 +251,7 @@ Data:
     return acc;
   }, {})
 )}
-- Oldest unresolved: ${requests[0] ? `${requests[0].age_hours}h — ${requests[0].request_type} (${requests[0].room})` : "none"}`,
-        }],
-      });
-
-      const summary = (msg.content[0] as any).text ?? "";
+- Oldest unresolved: ${requests[0] ? `${requests[0].age_hours}h — ${requests[0].request_type} (${requests[0].room})` : "none"}`, 300);
       await sendTelegram(supabase, "managers", summary);
     }
 
