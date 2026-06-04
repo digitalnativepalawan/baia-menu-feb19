@@ -8,7 +8,7 @@ import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
-import { Plus, Eye, EyeOff, Receipt, Search, Download, Upload, Trash2, Minus } from 'lucide-react';
+import { Plus, Eye, EyeOff, Receipt, Search, Download, Upload, Trash2, Minus, Sun } from 'lucide-react';
 import StaffNavBar from '@/components/StaffNavBar';
 import MenuBulkImportModal from '@/components/admin/MenuBulkImportModal';
 import ResortProfileForm from '@/components/admin/ResortProfileForm';
