@@ -1192,6 +1192,72 @@ export type Database = {
         }
         Relationships: []
       }
+      hermes_conversations: {
+        Row: {
+          context: Json | null
+          created_at: string
+          id: string
+          messages: Json
+          session_id: string | null
+          updated_at: string
+          user_id: string | null
+          user_type: string
+        }
+        Insert: {
+          context?: Json | null
+          created_at?: string
+          id?: string
+          messages?: Json
+          session_id?: string | null
+          updated_at?: string
+          user_id?: string | null
+          user_type: string
+        }
+        Update: {
+          context?: Json | null
+          created_at?: string
+          id?: string
+          messages?: Json
+          session_id?: string | null
+          updated_at?: string
+          user_id?: string | null
+          user_type?: string
+        }
+        Relationships: []
+      }
+      hermes_insights: {
+        Row: {
+          action_url: string | null
+          created_at: string
+          description: string | null
+          dismissed: boolean
+          id: string
+          priority: string | null
+          title: string
+          type: string
+        }
+        Insert: {
+          action_url?: string | null
+          created_at?: string
+          description?: string | null
+          dismissed?: boolean
+          id?: string
+          priority?: string | null
+          title: string
+          type: string
+        }
+        Update: {
+          action_url?: string | null
+          created_at?: string
+          description?: string | null
+          dismissed?: boolean
+          id?: string
+          priority?: string | null
+          title?: string
+          type?: string
+        }
+        Relationships: []
+      }
       housekeeping_checklists: {
         Row: {
           count_expected: number | null
