@@ -8,7 +8,7 @@ import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
-import { Plus, Eye, EyeOff, Receipt, Search, Download, Upload, Trash2, Minus } from 'lucide-react';
+import { Plus, Eye, EyeOff, Receipt, Search, Download, Upload, Trash2, Minus, Sun } from 'lucide-react';
 import StaffNavBar from '@/components/StaffNavBar';
 import MenuBulkImportModal from '@/components/admin/MenuBulkImportModal';
 import ResortProfileForm from '@/components/admin/ResortProfileForm';
@@ -208,6 +208,33 @@ const AdminPage = () => {
   const [whatsapp, setWhatsapp] = useState('');
   const [brkStart, setBrkStart] = useState('');
   const [brkEnd, setBrkEnd] = useState('');
+  const [morningBriefLoading, setMorningBriefLoading] = useState(false);
+
+  const sendMorningBrief = async () => {
+    setMorningBriefLoading(true);
+    try {
+      const response = await fetch(
+        'https://paghxagqnaisxesmhnwj.supabase.co/functions/v1/ops-coordinator',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-internal-secret': 'baia-ai-2026',
+          },
+          body: JSON.stringify({ type: 'morning' }),
+        }
+      );
+      if (!response.ok) {
+        const err = await response.text();
+        throw new Error(err || `HTTP ${response.status}`);
+      }
+      toast.success('Morning brief sent successfully');
+    } catch (e: any) {
+      toast.error(`Morning brief failed: ${e.message}`);
+    } finally {
+      setMorningBriefLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (settings) {
@@ -508,6 +535,20 @@ const AdminPage = () => {
           meta="Operations · People · Configuration"
           className="mb-5"
         />
+
+        {isAdmin && (
+          <div className="mb-4">
+            <Button
+              size="sm"
+              onClick={sendMorningBrief}
+              disabled={morningBriefLoading}
+              className="font-display text-xs tracking-wider gap-2 bg-gradient-gold text-background hover:opacity-90"
+            >
+              <Sun className="w-4 h-4" />
+              {morningBriefLoading ? 'Sending…' : 'Send Morning Brief'}
+            </Button>
+          </div>
+        )}
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           {/* ── Grouped tab triggers ─────────────────────────── */}
