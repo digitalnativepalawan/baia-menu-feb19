@@ -13,7 +13,6 @@ import { toast } from 'sonner';
 import { LogOut, UtensilsCrossed, MapPin, Car, Bike, MessageSquare, Star, Receipt, ArrowLeft, ChevronRight, ClipboardList, Calendar, Clock, Users, StickyNote, CheckCircle2, Utensils, Palmtree, Truck, CreditCard, FileText, Loader2, ConciergeBell, AlertTriangle, Bell, Info, Phone, Mail, MapPinned, Moon } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { setGuestSession } from '@/hooks/useGuestSession';
-import { HermesChatWidget } from '@/components/HermesChatWidget';
 
 const GUEST_PORTAL_KEY = 'guest_portal_session';
 
@@ -413,8 +412,6 @@ const GuestPortal = () => {
         {view === 'hotel-info' && <HotelInfoView profile={profile} />}
         {view === 'reservation' && <ReservationDetailsView session={session} booking={bookingDetails} onBill={() => setView('bill')} /> }
 
-        {/* Hermes AI Assistant — available on all guest pages */}
-        <HermesChatWidget guestSession={session} />
       </div>
     </div>
   );

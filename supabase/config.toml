@@ -21,8 +21,14 @@ verify_jwt = false
 [functions.guest-requests-api]
 verify_jwt = false
 
-[functions.hermes-chat]
+[functions.send-telegram]
 verify_jwt = false
 
-[functions.send-telegram]
+[functions.ops-coordinator]
+verify_jwt = false
+
+[functions.reservations-ai]
+verify_jwt = false
+
+[functions.concierge-ai]
 verify_jwt = false
