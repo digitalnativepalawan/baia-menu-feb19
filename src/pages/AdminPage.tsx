@@ -208,6 +208,33 @@ const AdminPage = () => {
   const [whatsapp, setWhatsapp] = useState('');
   const [brkStart, setBrkStart] = useState('');
   const [brkEnd, setBrkEnd] = useState('');
+  const [morningBriefLoading, setMorningBriefLoading] = useState(false);
+
+  const sendMorningBrief = async () => {
+    setMorningBriefLoading(true);
+    try {
+      const response = await fetch(
+        'https://paghxagqnaisxesmhnwj.supabase.co/functions/v1/ops-coordinator',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-internal-secret': 'baia-ai-2026',
+          },
+          body: JSON.stringify({ type: 'morning' }),
+        }
+      );
+      if (!response.ok) {
+        const err = await response.text();
+        throw new Error(err || `HTTP ${response.status}`);
+      }
+      toast.success('Morning brief sent successfully');
+    } catch (e: any) {
+      toast.error(`Morning brief failed: ${e.message}`);
+    } finally {
+      setMorningBriefLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (settings) {
