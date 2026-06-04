@@ -536,6 +536,20 @@ const AdminPage = () => {
           className="mb-5"
         />
 
+        {isAdmin && (
+          <div className="mb-4">
+            <Button
+              size="sm"
+              onClick={sendMorningBrief}
+              disabled={morningBriefLoading}
+              className="font-display text-xs tracking-wider gap-2 bg-gradient-gold text-background hover:opacity-90"
+            >
+              <Sun className="w-4 h-4" />
+              {morningBriefLoading ? 'Sending…' : 'Send Morning Brief'}
+            </Button>
+          </div>
+        )}
+
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           {/* ── Grouped tab triggers ─────────────────────────── */}
           <div className="space-y-2 mb-6">
