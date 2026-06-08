@@ -91,9 +91,12 @@ const ResortOpsPnLReport = ({ monthBookings, orders, monthExpenses, menuItems }:
         const ratio = orderTotal / itemSum;
         food += orderFood * ratio;
         bar += orderBar * ratio;
-      } else {
+      } else if (itemSum > 0) {
         food += orderFood;
         bar += orderBar;
+      } else {
+        // Item prices unavailable — fall back to order.total (same as Food Revenue card)
+        food += orderTotal;
       }
     }
     return { foodBevRevenue: food, barRevenue: bar };
