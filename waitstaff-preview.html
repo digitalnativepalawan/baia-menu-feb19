@@ -1,0 +1,775 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Waitstaff Board</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:        #0d0f14;
+    --card:      #13161e;
+    --card2:     #1a1e28;
+    --border:    rgba(255,255,255,0.08);
+    --text:      #e8e4d8;
+    --muted:     #6b7280;
+    --gold:      #c9a84c;
+    --gold-dim:  rgba(201,168,76,0.15);
+    --green:     #22c55e;
+    --orange:    #f97316;
+    --blue:      #3b82f6;
+    --purple:    #a855f7;
+    --red:       #ef4444;
+    --emerald:   #10b981;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+  }
+
+  /* ── Phone shell ── */
+  .phone {
+    width: 390px;
+    min-height: 844px;
+    background: var(--bg);
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* ── Header ── */
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px 10px;
+    background: rgba(13,15,20,0.92);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .header-left { display: flex; align-items: center; gap: 10px; }
+  .header-right { display: flex; align-items: center; gap: 8px; }
+
+  .btn-icon {
+    width: 36px; height: 36px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--card);
+    color: var(--muted);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; font-size: 16px;
+    transition: color .15s;
+  }
+  .btn-icon:hover { color: var(--text); }
+
+  .dept-pill {
+    display: flex; align-items: center; gap: 6px;
+    padding: 6px 14px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, #16a34a, #15803d);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .15em;
+    text-transform: uppercase;
+  }
+
+  .order-btn {
+    display: flex; align-items: center; gap: 6px;
+    padding: 6px 14px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, #c9a84c, #b8922e);
+    color: #0d0f14;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .1em;
+    cursor: pointer; border: none;
+    transition: opacity .15s;
+  }
+  .order-btn:hover { opacity: .9; }
+
+  .header-accent {
+    height: 2px;
+    background: linear-gradient(90deg, #16a34a, #15803d);
+    opacity: .6;
+    flex-shrink: 0;
+  }
+
+  /* ── Scrollable content ── */
+  .content {
+    flex: 1;
+    overflow-y: auto;
+    padding-bottom: 72px;
+  }
+  .content::-webkit-scrollbar { width: 3px; }
+  .content::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  /* ── Pills row ── */
+  .pills-row {
+    display: flex;
+    gap: 8px;
+    padding: 12px 16px 4px;
+    overflow-x: auto;
+    flex-shrink: 0;
+    scrollbar-width: none;
+  }
+  .pills-row::-webkit-scrollbar { display: none; }
+
+  .pill {
+    display: flex; align-items: center; gap: 6px;
+    padding: 6px 12px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: rgba(255,255,255,0.04);
+    color: var(--text);
+    font-size: 12px;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: all .15s;
+  }
+  .pill:hover { border-color: rgba(201,168,76,.3); }
+  .pill.active {
+    background: linear-gradient(135deg, #c9a84c, #b8922e);
+    border-color: rgba(201,168,76,.6);
+    color: #0d0f14;
+    font-weight: 700;
+    box-shadow: 0 0 12px -3px rgba(201,168,76,.5);
+  }
+  .pill-count {
+    width: 18px; height: 18px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.12);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; font-weight: 700;
+  }
+  .pill.active .pill-count { background: rgba(0,0,0,.2); color: #0d0f14; }
+
+  /* ── Status filter row ── */
+  .status-row {
+    display: flex;
+    gap: 8px;
+    padding: 6px 16px 12px;
+    overflow-x: auto;
+    flex-shrink: 0;
+    scrollbar-width: none;
+  }
+  .status-row::-webkit-scrollbar { display: none; }
+
+  /* ── Stat tiles ── */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    padding: 0 16px 16px;
+  }
+  .stat-tile {
+    border-radius: 16px;
+    border: 1px solid var(--border);
+    background: var(--card);
+    padding: 12px 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 8px;
+  }
+  .stat-icon {
+    width: 40px; height: 40px;
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+  }
+  .stat-icon.green  { background: rgba(34,197,94,.15);  color: #22c55e; }
+  .stat-icon.blue   { background: rgba(59,130,246,.15); color: #3b82f6; }
+  .stat-icon.amber  { background: rgba(201,168,76,.15); color: #c9a84c; }
+  .stat-icon.purple { background: rgba(168,85,247,.15); color: #a855f7; }
+
+  .stat-value {
+    font-size: 22px;
+    font-weight: 700;
+    line-height: 1;
+    color: var(--text);
+  }
+  .stat-label  { font-size: 9px;  color: rgba(232,228,216,.8); line-height: 1.2; }
+  .stat-sub    { font-size: 9px;  color: var(--muted); line-height: 1.2; }
+
+  /* ── Section headings ── */
+  .section-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 16px 12px;
+  }
+  .section-head-left { display: flex; align-items: center; gap: 8px; }
+  .section-title { font-size: 16px; font-weight: 700; color: var(--text); }
+  .section-badge {
+    width: 24px; height: 24px;
+    border-radius: 999px;
+    background: rgba(201,168,76,.2);
+    color: #c9a84c;
+    font-size: 11px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .sort-btn {
+    display: flex; align-items: center; gap: 4px;
+    font-size: 12px; color: var(--muted);
+    cursor: pointer; background: none; border: none; color: var(--muted);
+  }
+
+  /* ── Order cards ── */
+  .cards-list { padding: 0 16px; display: flex; flex-direction: column; gap: 12px; }
+
+  .order-card {
+    border-radius: 16px;
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--gold);
+    background: rgba(19,22,30,0.9);
+    overflow: hidden;
+  }
+  .order-card.status-new      { border-left-color: var(--gold); }
+  .order-card.status-preparing { border-left-color: var(--orange); }
+  .order-card.status-ready    { border-left-color: var(--emerald); }
+
+  .card-header { padding: 16px 16px 12px; }
+  .card-top {
+    display: flex; align-items: flex-start; justify-content: space-between; gap: 8px;
+    margin-bottom: 8px;
+  }
+  .card-unit { font-size: 16px; font-weight: 700; color: var(--text); }
+  .card-guest { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .card-time {
+    display: flex; align-items: center; gap: 4px;
+    font-size: 12px; color: var(--muted); white-space: nowrap; flex-shrink: 0;
+  }
+  .card-badges { display: flex; align-items: center; gap: 8px; }
+
+  .badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 2px 8px; border-radius: 999px; font-size: 10px; font-weight: 600;
+    border: 1px solid;
+  }
+  .badge-fire { color: var(--orange); border-color: rgba(249,115,22,.3); background: rgba(249,115,22,.1); }
+  .badge-tab  { color: #c4b5fd; border-color: rgba(168,85,247,.3);  background: rgba(168,85,247,.1); }
+  .badge-room { color: #93c5fd; border-color: rgba(59,130,246,.3);  background: rgba(59,130,246,.1); }
+
+  .card-items {
+    border-top: 1px solid var(--border);
+    padding: 12px 16px;
+  }
+  .item-row {
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    padding: 2px 0;
+  }
+  .item-name { font-size: 14px; color: var(--text); flex: 1; }
+  .item-price { font-size: 14px; color: var(--gold); font-variant-numeric: tabular-nums; }
+
+  .card-footer {
+    border-top: 1px solid var(--border);
+    padding: 12px 16px;
+  }
+  .footer-row { display: flex; align-items: center; gap: 12px; }
+  .footer-total { font-size: 22px; font-weight: 700; color: var(--gold); }
+
+  .cta-btn {
+    flex: 1;
+    padding: 12px;
+    border-radius: 12px;
+    border: none;
+    font-size: 14px; font-weight: 600;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    cursor: pointer;
+    transition: opacity .15s;
+  }
+  .cta-btn:hover { opacity: .9; }
+  .cta-blue   { background: #2563eb; color: #fff; }
+  .cta-green  { background: #16a34a; color: #fff; }
+
+  .status-pill {
+    padding: 4px 12px; border-radius: 999px; font-size: 11px; font-weight: 600; border: 1px solid;
+  }
+  .status-new      { color: var(--gold);   border-color: rgba(201,168,76,.3);   background: rgba(201,168,76,.1); }
+  .status-preparing { color: var(--orange); border-color: rgba(249,115,22,.3); background: rgba(249,115,22,.1); }
+
+  /* ── Today's Orders summary ── */
+  .today-card {
+    margin: 16px 16px 0;
+    border-radius: 16px;
+    border: 1px solid var(--border);
+    background: rgba(19,22,30,0.6);
+    padding: 16px;
+  }
+  .today-head {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 12px;
+  }
+  .today-title { font-size: 14px; font-weight: 700; color: var(--text); }
+  .view-all { font-size: 12px; color: var(--gold); display: flex; align-items: center; gap: 2px; cursor: pointer; }
+
+  .status-chips { display: flex; gap: 6px; }
+  .status-chip {
+    flex: 1;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    padding: 6px 4px;
+    text-align: center;
+    font-size: 10px;
+  }
+  .status-chip .chip-label { color: var(--muted); margin-bottom: 2px; }
+  .status-chip .chip-count { font-size: 16px; font-weight: 700; }
+  .chip-new     .chip-count { color: var(--gold); }
+  .chip-prep    .chip-count { color: var(--orange); }
+  .chip-ready   { background: rgba(255,255,255,.04); border-color: rgba(255,255,255,.12); }
+  .chip-ready   .chip-count { color: var(--emerald); }
+  .chip-served  .chip-count { color: var(--blue); }
+
+  /* ── Bottom nav ── */
+  .bottom-nav {
+    position: fixed;
+    bottom: 0; left: 50%; transform: translateX(-50%);
+    width: 390px;
+    background: rgba(19,22,30,.96);
+    backdrop-filter: blur(16px);
+    border-top: 1px solid var(--border);
+    display: flex;
+    padding: 8px 0 16px;
+    z-index: 50;
+  }
+  .nav-item {
+    flex: 1;
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    font-size: 10px; color: var(--muted);
+    cursor: pointer; padding: 4px 0;
+    transition: color .15s;
+    background: none; border: none;
+  }
+  .nav-item.active { color: var(--gold); }
+  .nav-item svg { font-size: 20px; }
+  .nav-dot {
+    width: 4px; height: 4px; border-radius: 999px;
+    background: var(--gold); margin-top: 1px;
+  }
+
+  /* ── SVG icons (inline) ── */
+  svg { display: inline-block; vertical-align: middle; fill: none; stroke: currentColor;
+        stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+
+  /* ── Utility ── */
+  .hidden { display: none !important; }
+  .spacer { height: 16px; }
+</style>
+</head>
+<body>
+
+<div class="phone">
+
+  <!-- Header -->
+  <header class="header">
+    <div class="header-left">
+      <button class="btn-icon" title="Back">
+        <svg width="18" height="18" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <div class="dept-pill">
+        <svg width="14" height="14" viewBox="0 0 24 24"><path d="M3 11l7-7 7 7"/><path d="M5 9v10a1 1 0 001 1h4v-5h4v5h4a1 1 0 001-1V9"/></svg>
+        WAITSTAFF
+      </div>
+    </div>
+    <div class="header-right">
+      <button class="order-btn">
+        <svg width="13" height="13" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Order
+      </button>
+      <button class="btn-icon" onclick="toggleTheme()" title="Theme">
+        <svg width="16" height="16" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+      </button>
+      <button class="btn-icon" title="Logout">
+        <svg width="16" height="16" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      </button>
+    </div>
+  </header>
+  <div class="header-accent"></div>
+
+  <!-- Scrollable body -->
+  <div class="content" id="main-content">
+
+    <!-- Unit pills -->
+    <div class="pills-row" id="unit-pills">
+      <button class="pill active" data-unit="all" onclick="selectUnit('all')">All <span class="pill-count" id="count-all">5</span></button>
+      <button class="pill" data-unit="walkin" onclick="selectUnit('walkin')">Walk-In <span class="pill-count" id="count-walkin">0</span></button>
+      <button class="pill" data-unit="cot1" onclick="selectUnit('cot1')">COT(1) <span class="pill-count" id="count-cot1">1</span></button>
+      <button class="pill" data-unit="cot2" onclick="selectUnit('cot2')">COT(2) <span class="pill-count" id="count-cot2">4</span></button>
+    </div>
+
+    <!-- Status filter -->
+    <div class="status-row" id="status-pills">
+      <button class="pill" data-status="New" onclick="selectStatus('New')">New</button>
+      <button class="pill" data-status="Preparing" onclick="selectStatus('Preparing')">Preparing</button>
+      <button class="pill active" data-status="Ready" onclick="selectStatus('Ready')">
+        Ready <span class="pill-count">1</span>
+      </button>
+    </div>
+
+    <!-- Stat tiles -->
+    <div class="stats-grid">
+      <div class="stat-tile">
+        <div class="stat-icon green">
+          <svg width="20" height="20" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+        </div>
+        <div>
+          <div class="stat-value" id="stat-total">4</div>
+          <div class="stat-label">Total Orders</div>
+          <div class="stat-sub">Today</div>
+        </div>
+      </div>
+      <div class="stat-tile">
+        <div class="stat-icon blue">
+          <svg width="20" height="20" viewBox="0 0 24 24"><path d="M6 2h12l1 7H5L6 2z"/><path d="M5 9c0 5.5 3 9 7 9s7-3.5 7-9"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="8" y1="22" x2="16" y2="22"/></svg>
+        </div>
+        <div>
+          <div class="stat-value" id="stat-prep">2</div>
+          <div class="stat-label">Preparing</div>
+          <div class="stat-sub">In Progress</div>
+        </div>
+      </div>
+      <div class="stat-tile">
+        <div class="stat-icon amber">
+          <svg width="20" height="20" viewBox="0 0 24 24"><path d="M3 11l7-7 7 7"/><path d="M5 9v10a1 1 0 001 1h4v-5h4v5h4a1 1 0 001-1V9"/></svg>
+        </div>
+        <div>
+          <div class="stat-value" id="stat-ready">1</div>
+          <div class="stat-label">Ready</div>
+          <div class="stat-sub">Ready to Serve</div>
+        </div>
+      </div>
+      <div class="stat-tile">
+        <div class="stat-icon purple">
+          <svg width="20" height="20" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="9 12 11 14 15 10"/></svg>
+        </div>
+        <div>
+          <div class="stat-value" id="stat-served">1</div>
+          <div class="stat-label">Served</div>
+          <div class="stat-sub">Completed</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Ready Orders section -->
+    <div id="ready-section">
+      <div class="section-head">
+        <div class="section-head-left">
+          <span class="section-title">Ready Orders</span>
+          <span class="section-badge" id="ready-badge">1</span>
+        </div>
+        <button class="sort-btn">
+          Sort by: Time
+          <svg width="12" height="12" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>
+        </button>
+      </div>
+      <div class="cards-list" id="ready-cards"></div>
+    </div>
+
+    <!-- Other orders section -->
+    <div id="other-section" class="hidden">
+      <div class="section-head">
+        <div class="section-head-left">
+          <span class="section-title" id="other-title">Preparing Orders</span>
+          <span class="section-badge" id="other-badge">0</span>
+        </div>
+      </div>
+      <div class="cards-list" id="other-cards"></div>
+    </div>
+
+    <div class="spacer"></div>
+
+    <!-- Today's Orders summary -->
+    <div class="today-card">
+      <div class="today-head">
+        <span class="today-title">Today's Orders</span>
+        <span class="view-all">View All
+          <svg width="14" height="14" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+        </span>
+      </div>
+      <div class="status-chips">
+        <div class="status-chip chip-new">
+          <div class="chip-label">New</div>
+          <div class="chip-count" id="chip-new">0</div>
+        </div>
+        <div class="status-chip chip-prep">
+          <div class="chip-label">Preparing</div>
+          <div class="chip-count" id="chip-prep">2</div>
+        </div>
+        <div class="status-chip chip-ready">
+          <div class="chip-label">Ready</div>
+          <div class="chip-count" id="chip-ready">1</div>
+        </div>
+        <div class="status-chip chip-served">
+          <div class="chip-label">Served</div>
+          <div class="chip-count" id="chip-served">1</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="spacer"></div>
+  </div><!-- /content -->
+
+  <!-- Bottom Nav -->
+  <nav class="bottom-nav">
+    <button class="nav-item active" onclick="setNav('orders', this)">
+      <svg width="22" height="22" viewBox="0 0 24 24"><path d="M3 11l7-7 7 7"/><path d="M5 9v10a1 1 0 001 1h4v-5h4v5h4a1 1 0 001-1V9"/></svg>
+      Orders
+      <div class="nav-dot"></div>
+    </button>
+    <button class="nav-item" onclick="setNav('history', this)">
+      <svg width="22" height="22" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      History
+    </button>
+    <button class="nav-item" onclick="setNav('tables', this)">
+      <svg width="22" height="22" viewBox="0 0 24 24"><rect x="3" y="3" width="8" height="8" rx="1"/><rect x="13" y="3" width="8" height="8" rx="1"/><rect x="3" y="13" width="8" height="8" rx="1"/><rect x="13" y="13" width="8" height="8" rx="1"/></svg>
+      Tables
+    </button>
+    <button class="nav-item" onclick="setNav('more', this)">
+      <svg width="22" height="22" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.5" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none"/><circle cx="19" cy="12" r="1.5" fill="currentColor" stroke="none"/></svg>
+      More
+    </button>
+  </nav>
+
+</div><!-- /phone -->
+
+<script>
+  /* ── Mock data ── */
+  const ORDERS = [
+    {
+      id: 1,
+      unit: 'cot1',
+      label: 'COT(1)',
+      guest: 'Le Smith',
+      status: 'Ready',
+      isInHouse: true,
+      elapsed: '16 days',
+      items: [{ name: 'Corned Beef with Eggs', qty: 1, price: 350 }],
+      badges: ['fire:1', 'tab'],
+      total: 350,
+    },
+    {
+      id: 2,
+      unit: 'cot2',
+      label: 'COT(2)',
+      guest: 'Maria Santos',
+      status: 'Preparing',
+      isInHouse: true,
+      elapsed: '12 min',
+      items: [
+        { name: 'Grilled Salmon',     qty: 2, price: 480 },
+        { name: 'Caesar Salad',       qty: 1, price: 220 },
+        { name: 'San Mig Light',      qty: 2, price: 80  },
+        { name: 'Garlic Fried Rice',  qty: 2, price: 120 },
+      ],
+      badges: ['fire:2', 'room'],
+      total: 1580,
+    },
+    {
+      id: 3,
+      unit: 'cot2',
+      label: 'COT(2)',
+      guest: 'Juan dela Cruz',
+      status: 'Preparing',
+      isInHouse: true,
+      elapsed: '8 min',
+      items: [
+        { name: 'Crispy Pata',   qty: 1, price: 650 },
+        { name: 'Sinigang na Baboy', qty: 1, price: 320 },
+      ],
+      badges: ['fire:2'],
+      total: 970,
+    },
+  ];
+
+  let currentUnit   = 'all';
+  let currentStatus = 'Ready';
+  let currentNav    = 'orders';
+
+  function getFiltered() {
+    return ORDERS.filter(o => {
+      if (currentUnit !== 'all' && o.unit !== currentUnit) return false;
+      if (currentStatus !== 'all' && o.status !== currentStatus) return false;
+      return true;
+    });
+  }
+
+  function getByStatus(st) {
+    const base = currentUnit === 'all' ? ORDERS : ORDERS.filter(o => o.unit === currentUnit);
+    return base.filter(o => o.status === st);
+  }
+
+  /* ── Render a single order card ── */
+  function renderCard(order) {
+    const statusClass = {
+      New: 'status-new', Preparing: 'status-preparing', Ready: 'status-ready'
+    }[order.status] || '';
+
+    const badgesHtml = order.badges.map(b => {
+      if (b.startsWith('fire:')) {
+        const n = b.split(':')[1];
+        return `<span class="badge badge-fire">🔥 ${n}</span>`;
+      }
+      if (b === 'tab')  return `<span class="badge badge-tab">$ Tab</span>`;
+      if (b === 'room') return `<span class="badge badge-room">🏠 Room</span>`;
+      return '';
+    }).join('');
+
+    const itemsHtml = order.items.map(it =>
+      `<div class="item-row">
+        <span class="item-name">${it.qty}× ${it.name}</span>
+        <span class="item-price">₱${(it.price * it.qty).toLocaleString()}</span>
+      </div>`
+    ).join('');
+
+    const footerHtml = order.status === 'Ready'
+      ? `<div class="footer-row">
+           <span class="footer-total">₱${order.total.toLocaleString()}</span>
+           <button class="cta-btn ${order.isInHouse ? 'cta-blue' : 'cta-green'}"
+                   onclick="handleAction(${order.id})">
+             ${order.isInHouse ? '🏠 Charge to Room' : '📤 Send to Cashier'}
+           </button>
+         </div>`
+      : `<div class="footer-row" style="justify-content:space-between">
+           <span class="footer-total">₱${order.total.toLocaleString()}</span>
+           <span class="status-pill status-${order.status.toLowerCase()}">${order.status}</span>
+         </div>`;
+
+    return `
+      <div class="order-card ${statusClass}" id="card-${order.id}">
+        <div class="card-header">
+          <div class="card-top">
+            <div>
+              <div class="card-unit">${order.label}</div>
+              ${order.guest ? `<div class="card-guest">${order.guest}</div>` : ''}
+            </div>
+            <div class="card-time">
+              <svg width="13" height="13" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              ${order.elapsed}
+            </div>
+          </div>
+          <div class="card-badges">${badgesHtml}</div>
+        </div>
+        <div class="card-items">${itemsHtml}</div>
+        <div class="card-footer">${footerHtml}</div>
+      </div>`;
+  }
+
+  function handleAction(id) {
+    const card = document.getElementById('card-' + id);
+    if (!card) return;
+    const idx = ORDERS.findIndex(o => o.id === id);
+    if (idx !== -1) {
+      ORDERS[idx].status = 'Served';
+      // increment served counter
+      const sc = document.getElementById('stat-served');
+      if (sc) sc.textContent = parseInt(sc.textContent) + 1;
+      const cc = document.getElementById('chip-served');
+      if (cc) cc.textContent = parseInt(cc.textContent) + 1;
+    }
+    card.style.transition = 'opacity .3s';
+    card.style.opacity = '0';
+    setTimeout(() => { renderBoard(); }, 320);
+    showToast(ORDERS[idx]?.isInHouse ? 'Charges added to room bill' : 'Sent to Cashier');
+  }
+
+  function renderBoard() {
+    const ready  = getByStatus('Ready');
+    const other  = getFiltered().filter(o => o.status !== 'Ready');
+    const newCnt = getByStatus('New').length;
+    const prepCnt= getByStatus('Preparing').length;
+    const readyCnt = ready.length;
+
+    // Update stat counts
+    document.getElementById('stat-ready').textContent = readyCnt;
+    document.getElementById('stat-prep').textContent  = prepCnt;
+    document.getElementById('chip-new').textContent   = newCnt;
+    document.getElementById('chip-prep').textContent  = prepCnt;
+    document.getElementById('chip-ready').textContent = readyCnt;
+    document.getElementById('ready-badge').textContent = readyCnt;
+
+    // Ready section
+    const readySec   = document.getElementById('ready-section');
+    const readyCards = document.getElementById('ready-cards');
+    const showReady  = (currentStatus === 'all' || currentStatus === 'Ready') && ready.length > 0;
+    readySec.classList.toggle('hidden', !showReady);
+    readyCards.innerHTML = ready.map(renderCard).join('');
+
+    // Other section
+    const otherSec   = document.getElementById('other-section');
+    const otherCards = document.getElementById('other-cards');
+    const showOther  = currentStatus !== 'all' && currentStatus !== 'Ready' && other.length > 0;
+    otherSec.classList.toggle('hidden', !showOther);
+    if (showOther) {
+      document.getElementById('other-title').textContent = currentStatus + ' Orders';
+      document.getElementById('other-badge').textContent = other.length;
+      otherCards.innerHTML = other.map(renderCard).join('');
+    }
+  }
+
+  /* ── Unit filter ── */
+  function selectUnit(unit) {
+    currentUnit = unit;
+    document.querySelectorAll('#unit-pills .pill').forEach(p => {
+      p.classList.toggle('active', p.dataset.unit === unit);
+    });
+    renderBoard();
+  }
+
+  /* ── Status filter ── */
+  function selectStatus(status) {
+    currentStatus = (currentStatus === status) ? 'all' : status;
+    document.querySelectorAll('#status-pills .pill').forEach(p => {
+      p.classList.toggle('active', p.dataset.status === currentStatus);
+    });
+    renderBoard();
+  }
+
+  /* ── Bottom nav ── */
+  function setNav(tab, el) {
+    currentNav = tab;
+    document.querySelectorAll('.nav-item').forEach(b => {
+      b.classList.remove('active');
+      const dot = b.querySelector('.nav-dot');
+      if (dot) dot.remove();
+    });
+    el.classList.add('active');
+    if (!el.querySelector('.nav-dot')) {
+      const dot = document.createElement('div');
+      dot.className = 'nav-dot';
+      el.appendChild(dot);
+    }
+  }
+
+  /* ── Toast ── */
+  function showToast(msg) {
+    const t = document.createElement('div');
+    t.textContent = msg;
+    Object.assign(t.style, {
+      position:'fixed', bottom:'90px', left:'50%', transform:'translateX(-50%)',
+      background:'#16a34a', color:'#fff', padding:'10px 20px',
+      borderRadius:'10px', fontSize:'13px', fontWeight:'600', zIndex:'999',
+      boxShadow:'0 4px 20px rgba(0,0,0,.4)', transition:'opacity .3s',
+    });
+    document.body.appendChild(t);
+    setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 300); }, 2200);
+  }
+
+  /* ── Theme toggle stub ── */
+  function toggleTheme() {
+    document.documentElement.classList.toggle('light');
+  }
+
+  /* ── Init ── */
+  renderBoard();
+</script>
+</body>
+</html>
