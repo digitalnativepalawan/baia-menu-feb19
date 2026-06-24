@@ -41,6 +41,7 @@ import GuestPortalConfig from '@/components/admin/GuestPortalConfig';
 import DepartmentOrdersView from '@/components/DepartmentOrdersView';
 import IntegrationReadinessDashboard from '@/components/integration/IntegrationReadinessDashboard';
 import LiveOpsDashboard from '@/components/admin/LiveOpsDashboard';
+import AgentChatPanel from '@/components/AgentChatPanel';
 
 import { deductInventoryForOrder } from '@/lib/inventoryDeduction';
 import { hasAccess, canEdit, canViewDocuments } from '@/lib/permissions';
@@ -1107,6 +1108,7 @@ const AdminPage = () => {
           )}
         </Tabs>
       </div>
+      <AgentChatPanel />
 
       {/* Menu item edit dialog */}
       <Dialog open={!!editItem} onOpenChange={() => { setEditItem(null); setConfirmingDelete(false); }}>
