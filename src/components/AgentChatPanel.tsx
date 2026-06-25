@@ -11,6 +11,8 @@ interface Message {
   timestamp: Date;
 }
 
+const API_URL = import.meta.env.VITE_HERMES_URL || '/api/hermes';
+
 export default function AgentChatPanel() {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -37,8 +39,7 @@ export default function AgentChatPanel() {
     setLoading(true);
 
     try {
-      // Replace with your Hermes API endpoint
-      const res = await fetch('/api/hermes/chat', {
+      const res = await fetch(`${API_URL}/chat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
